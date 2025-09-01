@@ -1,0 +1,2647 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal de Cierre - ZUMAF</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <style>
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f3f4f6; /* bg-gray-100 */
+}
+.custom-scrollbar::-webkit-scrollbar { width: 8px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #555; }
+#actionButtonContainer { min-height: 50px; }
+.item-selected { background-color: #3b82f6; color: white; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
+.item-default { background-color: #f3f4f6; }
+.item-default:hover { background-color: #dbeafe; }
+.modal-backdrop { transition: opacity 0.3s ease; }
+.modal-panel { transition: transform 0.3s ease, opacity 0.3s ease; }
+.tab { transition: all 0.2s ease-in-out; }
+.tab-active { border-bottom-width: 3px; border-color: #2563eb; color: #1d4ed8; font-weight: 600; }
+.tab-inactive { border-color: transparent; color: #6b7280; }
+.tab-inactive:hover { border-color: #9ca3af; color: #111827; }
+.loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* Estilos para la Notificación Toast */
+#toast {
+    position: fixed;
+    top: -100px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 24px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    transition: top 0.5s ease-in-out;
+    z-index: 100;
+}
+.toast-success { background-color: #28a745; }
+.toast-error { background-color: #dc3545; }
+#toast.show { top: 20px; }
+</style>
+</head>
+<body>
+    <div id="toast"></div>
+    <div class="container mx-auto p-4">
+        <header class="bg-white shadow rounded-lg p-6 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">Portal de Cierre de Obras</h1>
+                <p class="text-lg text-gray-600">Proveedor: <span class="font-semibold" id="providerName"></span></p>
+            </div>
+            <button id="offPlanButton" class="mt-4 sm:mt-0 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                INFORMAR CIERRE FUERA DEL PLAN
+            </button>
+        </header>
+
+        <div class="mb-4 border-b border-gray-200">
+            <nav class="flex -mb-px space-x-6" aria-label="Tabs">
+                <button id="pendingTab" class="py-3 px-1 border-b-2 text-sm font-medium tab">Pendientes</button>
+                <button id="completedTab" class="py-3 px-1 border-b-2 text-sm font-medium tab">Realizados</button>
+            </nav>
+        </div>
+
+        <main id="pendingView" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white shadow rounded-lg p-6 flex flex-col"><h2 class="text-xl font-semibold mb-4">Edificios Pendientes</h2><div class="relative mb-4"><input type="text" id="pendingSearchBox" placeholder="Buscar por calle o altura..." class="w-full p-3 border border-gray-300 rounded-lg pl-10"><svg class="w-6 h-6 text-gray-400 absolute top-1/2 left-3 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg></div><div id="pendingBuildingList" class="flex-grow overflow-y-auto custom-scrollbar pr-2 h-96"></div></div>
+            <div class="bg-white shadow rounded-lg p-6"><h2 class="text-xl font-semibold mb-4">Información del Edificio</h2><div id="pendingBuildingInfoCard" class="bg-gray-50 p-4 rounded-lg min-h-[200px] flex items-center justify-center"><p class="text-gray-500 text-center">Seleccione un edificio de la lista.</p></div><div id="pendingActionButtonContainer" class="mt-6 text-center"></div></div>
+        </main>
+
+        <main id="completedView" class="grid grid-cols-1 md:grid-cols-2 gap-6 hidden">
+            <div class="bg-white shadow rounded-lg p-6 flex flex-col"><h2 class="text-xl font-semibold mb-4">Edificios Realizados</h2><div class="relative mb-4"><input type="text" id="completedSearchBox" placeholder="Buscar por calle o altura..." class="w-full p-3 border border-gray-300 rounded-lg pl-10"><svg class="w-6 h-6 text-gray-400 absolute top-1/2 left-3 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg></div><div id="completedBuildingList" class="flex-grow overflow-y-auto custom-scrollbar pr-2 h-96"></div></div>
+            <div class="bg-white shadow rounded-lg p-6"><h2 class="text-xl font-semibold mb-4">Detalles del Cierre</h2><div id="completedBuildingInfoCard" class="bg-gray-50 p-4 rounded-lg min-h-[200px] flex items-center justify-center"><p class="text-gray-500 text-center">Seleccione un cierre de la lista.</p></div></div>
+        </main>
+    </div>
+
+    <div id="reportModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden"><div id="reportModalBackdrop" class="absolute inset-0 bg-black bg-opacity-50 opacity-0 modal-backdrop"></div><div class="modal-panel bg-white rounded-lg shadow-2xl w-full max-w-lg mx-auto transform opacity-0 scale-95 flex flex-col max-h-[90vh]"><div class="flex justify-between items-center p-4 border-b flex-shrink-0"><div><h3 class="text-lg font-semibold">Informar Cierre</h3><p id="reportModalTitle" class="text-sm text-gray-600"></p></div><button id="closeReportModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button></div><form id="reportForm" class="p-4 space-y-4 overflow-y-auto custom-scrollbar flex-grow"><div><label for="reportCloseReason" class="block text-sm font-medium text-gray-700">Causal (obligatorio)</label><select id="reportCloseReason" name="reportCloseReason" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"><option value="">Seleccione...</option><option>CONSTRUIDO</option><option>CANCELADO</option></select></div><div><label for="reportObservations" class="block text-sm font-medium text-gray-700">Observaciones (obligatorio)</label><textarea id="reportObservations" name="reportObservations" rows="3" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></textarea></div><div><label class="block text-sm font-medium text-gray-700 mb-2">Fotos (máx. 15)</label><div class="flex space-x-2"><label for="reportCameraInput" class="flex-1 text-center px-4 py-2 bg-gray-600 text-white rounded-md cursor-pointer hover:bg-gray-700 text-xs">CÁMARA</label><input type="file" id="reportCameraInput" accept="image/*" capture="environment" class="hidden"><label for="reportGalleryInput" class="flex-1 text-center px-4 py-2 bg-gray-600 text-white rounded-md cursor-pointer hover:bg-gray-700 text-xs">GALERÍA</label><input type="file" id="reportGalleryInput" accept="image/*" multiple class="hidden"></div></div><div id="reportPhotoPreview" class="grid grid-cols-3 sm:grid-cols-5 gap-2 bg-gray-100 p-2 rounded-md min-h-[80px]"></div></form><div class="px-4 py-3 bg-gray-50 text-right flex-shrink-0"><button type="submit" form="reportForm" id="submitReportBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">COMPLETAR CIERRE</button></div></div></div>
+    <div id="offPlanModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden"><div id="offPlanModalBackdrop" class="absolute inset-0 bg-black bg-opacity-50 opacity-0 modal-backdrop"></div><div class="modal-panel bg-white rounded-lg shadow-2xl w-full max-w-lg mx-auto transform opacity-0 scale-95 flex flex-col max-h-[90vh]"><div class="flex justify-between items-center p-4 border-b flex-shrink-0"><h3 class="text-lg font-semibold">Cierre Fuera del Plan</h3><button id="closeOffPlanModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button></div><form id="offPlanReportForm" class="p-4 space-y-4 overflow-y-auto custom-scrollbar flex-grow"><div><label for="offPlanAddress" class="block text-sm font-medium text-gray-700">Dirección (obligatorio)</label><input type="text" id="offPlanAddress" name="offPlanAddress" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></div><div><label for="offPlanNap" class="block text-sm font-medium text-gray-700">NAP (obligatorio)</label><input type="text" id="offPlanNap" name="offPlanNap" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></div><div><label for="offPlanCdo" class="block text-sm font-medium text-gray-700">CDO (opcional)</label><input type="text" id="offPlanCdo" name="offPlanCdo" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></div><hr><div><label for="offPlanCloseReason" class="block text-sm font-medium text-gray-700">Causal (obligatorio)</label><select id="offPlanCloseReason" name="offPlanCloseReason" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"><option value="">Seleccione...</option><option>CONSTRUIDO</option><option>CANCELADO</option></select></div><div><label for="offPlanObservations" class="block text-sm font-medium text-gray-700">Observaciones (obligatorio)</label><textarea id="offPlanObservations" name="offPlanObservations" rows="3" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></textarea></div><div><label class="block text-sm font-medium text-gray-700 mb-2">Fotos (máx. 15)</label><div class="flex space-x-2"><label for="offPlanCameraInput" class="flex-1 text-center px-4 py-2 bg-gray-600 text-white rounded-md cursor-pointer hover:bg-gray-700 text-xs">CÁMARA</label><input type="file" id="offPlanCameraInput" accept="image/*" capture="environment" class="hidden"><label for="offPlanGalleryInput" class="flex-1 text-center px-4 py-2 bg-gray-600 text-white rounded-md cursor-pointer hover:bg-gray-700 text-xs">GALERÍA</label><input type="file" id="offPlanGalleryInput" accept="image/*" multiple class="hidden"></div></div><div id="offPlanPhotoPreview" class="grid grid-cols-3 sm:grid-cols-5 gap-2 bg-gray-100 p-2 rounded-md min-h-[80px]"></div></form><div class="px-4 py-3 bg-gray-50 text-right flex-shrink-0"><button type="submit" form="offPlanReportForm" id="submitOffPlanBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">COMPLETAR CIERRE</button></div></div></div>
+    
+    <script>const GOOGLE_APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx004763u8F8bfKL5GxLFkE9UEs74hh9b5V6pOO_NHD-533LMY8FMtW-ItcdrLx-JSCxw/exec";</script>
+    <script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCv5xb28BLGtHcidfKxcnD0xMBlYk_R3vQ",
+  authDomain: "cierreedificios.firebaseapp.com",
+  projectId: "cierreedificios",
+  storageBucket: "cierreedificios.firebasestorage.app",
+  messagingSenderId: "553433458726",
+  appId: "1:553433458726:web:4732b53b5fb2e869c31ee7",
+  measurementId: "G-HG2WNBDH0V"
+};
+</script>
+    <script>const edificiosData = [
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "AVELLANEDA ,AV. 3248",
+        "NAP": "NRARD08",
+        "CDO": "-",
+        "TIPO EDIFICIO": "41 A 80 UF",
+        "TIPO INST": "PRECO",
+        "UF DEDICADO": "42",
+        "N° FO ASIGNADO": "16",
+        "RAMA": "PRECO 9",
+        "SALIDA": "9",
+        "DIRECCION NAP": "AV. AVELLENADA 3290",
+        "Q CDOS": "6",
+        "Q FO": "1",
+        "ID CALLE": "390",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "AVELLANEDA ,AV. 3266",
+        "NAP": "NRARD08",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "30",
+        "N° FO ASIGNADO": "15",
+        "RAMA": "E",
+        "SALIDA": "5",
+        "DIRECCION NAP": "AV. AVELLENADA 3290",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "390",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "AVELLANEDA ,AV. 3268",
+        "NAP": "NRARD08",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "34",
+        "N° FO ASIGNADO": "14",
+        "RAMA": "D",
+        "SALIDA": "4",
+        "DIRECCION NAP": "AV. AVELLENADA 3290",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "390",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 20,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "AVELLANEDA ,AV. 3350",
+        "NAP": "NRARD08",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "15",
+        "N° FO ASIGNADO": "14",
+        "RAMA": "C",
+        "SALIDA": "3",
+        "DIRECCION NAP": "AV. AVELLENADA 3290",
+        "Q CDOS": "2",
+        "Q FO": "1",
+        "ID CALLE": "390",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 3,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "AVELLANEDA ,AV. 3358",
+        "NAP": "NRARD08",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "29",
+        "N° FO ASIGNADO": "13",
+        "RAMA": "B",
+        "SALIDA": "2",
+        "DIRECCION NAP": "AV. AVELLENADA 3290",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "390",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 14,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "AVELLANEDA ,AV. 3366",
+        "NAP": "NRARD08",
+        "CDO": "NRARD08A2",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "6",
+        "N° FO ASIGNADO": "13",
+        "RAMA": "A",
+        "SALIDA": "1",
+        "DIRECCION NAP": "AV. AVELLENADA 3290",
+        "Q CDOS": "1",
+        "Q FO": "1",
+        "ID CALLE": "390",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 1,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "AVELLANEDA ,AV. 3368",
+        "NAP": "NRARD08",
+        "CDO": "NRARD08A2",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "6",
+        "N° FO ASIGNADO": "13",
+        "RAMA": "A",
+        "SALIDA": "1",
+        "DIRECCION NAP": "AV. AVELLENADA 3290",
+        "Q CDOS": "1",
+        "Q FO": "1",
+        "ID CALLE": "390",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 1,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "AVELLANEDA ,AV. 3370",
+        "NAP": "NRARD08",
+        "CDO": "NRARD08A2",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "6",
+        "N° FO ASIGNADO": "13",
+        "RAMA": "A",
+        "SALIDA": "1",
+        "DIRECCION NAP": "AV. AVELLENADA 3290",
+        "Q CDOS": "1",
+        "Q FO": "1",
+        "ID CALLE": "390",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 1,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "AVELLANEDA ,AV. 3376",
+        "NAP": "NRARD08",
+        "CDO": "NRARD08A2",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "6",
+        "N° FO ASIGNADO": "13",
+        "RAMA": "A",
+        "SALIDA": "1",
+        "DIRECCION NAP": "AV. AVELLENADA 3290",
+        "Q CDOS": "1",
+        "Q FO": "1",
+        "ID CALLE": "390",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 1,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BACACAY 3235",
+        "NAP": "NRARD11",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "40",
+        "N° FO ASIGNADO": "7",
+        "RAMA": "C",
+        "SALIDA": "3",
+        "DIRECCION NAP": "BACACAY 3250",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "480",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BACACAY 3241",
+        "NAP": "NRARD11",
+        "CDO": "-",
+        "TIPO EDIFICIO": "41 A 80 UF",
+        "TIPO INST": "PRECO",
+        "UF DEDICADO": "43",
+        "N° FO ASIGNADO": "9",
+        "RAMA": "PRECO 9",
+        "SALIDA": "9",
+        "DIRECCION NAP": "BACACAY 3250",
+        "Q CDOS": "6",
+        "Q FO": "1",
+        "ID CALLE": "480",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 1,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BACACAY 3248",
+        "NAP": "NRARD11",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "23",
+        "N° FO ASIGNADO": "6",
+        "RAMA": "B",
+        "SALIDA": "2",
+        "DIRECCION NAP": "BACACAY 3250",
+        "Q CDOS": "3",
+        "Q FO": "1",
+        "ID CALLE": "480",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 2,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BACACAY 3251",
+        "NAP": "NRARD11",
+        "CDO": "-",
+        "TIPO EDIFICIO": "41 A 80 UF",
+        "TIPO INST": "PRECO",
+        "UF DEDICADO": "42",
+        "N° FO ASIGNADO": "10",
+        "RAMA": "PRECO 10",
+        "SALIDA": "10",
+        "DIRECCION NAP": "BACACAY 3250",
+        "Q CDOS": "6",
+        "Q FO": "1",
+        "ID CALLE": "480",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 2,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BACACAY 3319",
+        "NAP": "NRARD11",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "8",
+        "N° FO ASIGNADO": "7",
+        "RAMA": "D",
+        "SALIDA": "4",
+        "DIRECCION NAP": "BACACAY 3250",
+        "Q CDOS": "1",
+        "Q FO": "1",
+        "ID CALLE": "480",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 1,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BACACAY 3347",
+        "NAP": "NRARD11",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "32",
+        "N° FO ASIGNADO": "8",
+        "RAMA": "E",
+        "SALIDA": "5",
+        "DIRECCION NAP": "BACACAY 3250",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "480",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BACACAY 3357",
+        "NAP": "NRARD11",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "35",
+        "N° FO ASIGNADO": "8",
+        "RAMA": "F",
+        "SALIDA": "6",
+        "DIRECCION NAP": "BACACAY 3250",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "480",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BOGOTA 3213",
+        "NAP": "NRARD06",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "20",
+        "N° FO ASIGNADO": "3",
+        "RAMA": "B",
+        "SALIDA": "2",
+        "DIRECCION NAP": "BOGOTA 3270",
+        "Q CDOS": "3",
+        "Q FO": "1",
+        "ID CALLE": "93",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 1,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BOGOTA 3219",
+        "NAP": "NRARD06",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "30",
+        "N° FO ASIGNADO": "4",
+        "RAMA": "C",
+        "SALIDA": "3",
+        "DIRECCION NAP": "BOGOTA 3270",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "93",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 11,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BOGOTA 3223",
+        "NAP": "NRARD06",
+        "CDO": "-",
+        "TIPO EDIFICIO": "",
+        "TIPO INST": "",
+        "UF DEDICADO": "34",
+        "N° FO ASIGNADO": "4",
+        "RAMA": "D",
+        "SALIDA": "4",
+        "DIRECCION NAP": "BOGOTA 3270",
+        "Q CDOS": "5",
+        "Q FO": "1",
+        "ID CALLE": "93",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BOGOTA 3223",
+        "NAP": "NRARD06",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "-",
+        "N° FO ASIGNADO": "4",
+        "RAMA": "D",
+        "SALIDA": "4",
+        "DIRECCION NAP": "BOGOTA 3270",
+        "Q CDOS": "3",
+        "Q FO": "1",
+        "ID CALLE": "93",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BOGOTA 3236",
+        "NAP": "NRARD06",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "35",
+        "N° FO ASIGNADO": "6",
+        "RAMA": "H",
+        "SALIDA": "8",
+        "DIRECCION NAP": "BOGOTA 3270",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "93",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 1,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BOGOTA 3245",
+        "NAP": "NRARD06",
+        "CDO": "-",
+        "TIPO EDIFICIO": "41 A 80 UF",
+        "TIPO INST": "PRECO",
+        "UF DEDICADO": "44",
+        "N° FO ASIGNADO": "7",
+        "RAMA": "PRECO 9",
+        "SALIDA": "9",
+        "DIRECCION NAP": "BOGOTA 3270",
+        "Q CDOS": "6",
+        "Q FO": "1",
+        "ID CALLE": "93",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BOGOTA 3258",
+        "NAP": "NRARD06",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "25",
+        "N° FO ASIGNADO": "6",
+        "RAMA": "G",
+        "SALIDA": "7",
+        "DIRECCION NAP": "BOGOTA 3270",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "93",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 3,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BOGOTA 3259",
+        "NAP": "NRARD06",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "35",
+        "N° FO ASIGNADO": "5",
+        "RAMA": "E",
+        "SALIDA": "5",
+        "DIRECCION NAP": "BOGOTA 3270",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "93",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 1,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BOGOTA 3263",
+        "NAP": "NRARD06",
+        "CDO": "-",
+        "TIPO EDIFICIO": "41 A 80 UF",
+        "TIPO INST": "PRECO",
+        "UF DEDICADO": "75",
+        "N° FO ASIGNADO": "8",
+        "RAMA": "PRECO 10",
+        "SALIDA": "10",
+        "DIRECCION NAP": "BOGOTA 3270",
+        "Q CDOS": "10",
+        "Q FO": "1",
+        "ID CALLE": "93",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BOGOTA 3265",
+        "NAP": "NRARD06",
+        "CDO": "-",
+        "TIPO EDIFICIO": "41 A 80 UF",
+        "TIPO INST": "PRECO",
+        "UF DEDICADO": "75",
+        "N° FO ASIGNADO": "8",
+        "RAMA": "PRECO 10",
+        "SALIDA": "10",
+        "DIRECCION NAP": "BOGOTA 3270",
+        "Q CDOS": "10",
+        "Q FO": "1",
+        "ID CALLE": "93",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 4,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BOGOTA 3291",
+        "NAP": "NRARD06",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "22",
+        "N° FO ASIGNADO": "5",
+        "RAMA": "F",
+        "SALIDA": "6",
+        "DIRECCION NAP": "BOGOTA 3270",
+        "Q CDOS": "3",
+        "Q FO": "1",
+        "ID CALLE": "93",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BOGOTA 3310",
+        "NAP": "NRARD01",
+        "CDO": "NRARD01B2",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "16",
+        "N° FO ASIGNADO": "1",
+        "RAMA": "B",
+        "SALIDA": "2",
+        "DIRECCION NAP": "BOGOTA 3340",
+        "Q CDOS": "2",
+        "Q FO": "1",
+        "ID CALLE": "93",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BOGOTA 3355",
+        "NAP": "NRARD01",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "21",
+        "N° FO ASIGNADO": "2",
+        "RAMA": "C",
+        "SALIDA": "3",
+        "DIRECCION NAP": "BOGOTA 3340",
+        "Q CDOS": "3",
+        "Q FO": "1",
+        "ID CALLE": "93",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 3,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BOGOTA 3361",
+        "NAP": "NRARD01",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "34",
+        "N° FO ASIGNADO": "2",
+        "RAMA": "D",
+        "SALIDA": "4",
+        "DIRECCION NAP": "BOGOTA 3340",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "93",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BOGOTA 3372",
+        "NAP": "NRARD01",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "17",
+        "N° FO ASIGNADO": "4",
+        "RAMA": "G",
+        "SALIDA": "7",
+        "DIRECCION NAP": "BOGOTA 3340",
+        "Q CDOS": "3",
+        "Q FO": "1",
+        "ID CALLE": "93",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 1,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BOGOTA 3381",
+        "NAP": "NRARD01",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "32",
+        "N° FO ASIGNADO": "3",
+        "RAMA": "E",
+        "SALIDA": "5",
+        "DIRECCION NAP": "BOGOTA 3340",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "93",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BOGOTA 3395",
+        "NAP": "NRARD01",
+        "CDO": "NRARD01A2",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "16",
+        "N° FO ASIGNADO": "1",
+        "RAMA": "A",
+        "SALIDA": "1",
+        "DIRECCION NAP": "BOGOTA 3340",
+        "Q CDOS": "2",
+        "Q FO": "1",
+        "ID CALLE": "93",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 9,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "BOGOTA 3396",
+        "NAP": "NRARD01",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "24",
+        "N° FO ASIGNADO": "3",
+        "RAMA": "F",
+        "SALIDA": "6",
+        "DIRECCION NAP": "BOGOTA 3340",
+        "Q CDOS": "3",
+        "Q FO": "1",
+        "ID CALLE": "93",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 6,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CAMPANA 134",
+        "NAP": "NRARD04",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "30",
+        "N° FO ASIGNADO": "12",
+        "RAMA": "C",
+        "SALIDA": "3",
+        "DIRECCION NAP": "CAMPANA 180",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "170",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 1,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CAMPANA 150",
+        "NAP": "NRARD04",
+        "CDO": "-",
+        "TIPO EDIFICIO": "41 A 80 UF",
+        "TIPO INST": "PRECO",
+        "UF DEDICADO": "44",
+        "N° FO ASIGNADO": "13",
+        "RAMA": "PRECO 9",
+        "SALIDA": "9",
+        "DIRECCION NAP": "CAMPANA 180",
+        "Q CDOS": "6",
+        "Q FO": "1",
+        "ID CALLE": "170",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CAMPANA 185",
+        "NAP": "NRARD04",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "20",
+        "N° FO ASIGNADO": "11",
+        "RAMA": "B",
+        "SALIDA": "2",
+        "DIRECCION NAP": "CAMPANA 180",
+        "Q CDOS": "3",
+        "Q FO": "1",
+        "ID CALLE": "170",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 1,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CAMPANA 230",
+        "NAP": "NRARD10",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "27",
+        "N° FO ASIGNADO": "4",
+        "RAMA": "H",
+        "SALIDA": "8",
+        "DIRECCION NAP": "CAMPANA 250",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "170",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 1,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CAMPANA 234",
+        "NAP": "NRARD10",
+        "CDO": "-",
+        "TIPO EDIFICIO": "41 A 80 UF",
+        "TIPO INST": "PRECO",
+        "UF DEDICADO": "55",
+        "N° FO ASIGNADO": "5",
+        "RAMA": "PRECO 9",
+        "SALIDA": "9",
+        "DIRECCION NAP": "CAMPANA 250",
+        "Q CDOS": "7",
+        "Q FO": "1",
+        "ID CALLE": "170",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CAMPANA 237",
+        "NAP": "NRARD10",
+        "CDO": "NRARD10A2",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "14",
+        "N° FO ASIGNADO": "1",
+        "RAMA": "A",
+        "SALIDA": "1",
+        "DIRECCION NAP": "CAMPANA 250",
+        "Q CDOS": "2",
+        "Q FO": "1",
+        "ID CALLE": "170",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CAMPANA 243",
+        "NAP": "NRARD10",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "17",
+        "N° FO ASIGNADO": "2",
+        "RAMA": "C",
+        "SALIDA": "3",
+        "DIRECCION NAP": "CAMPANA 250",
+        "Q CDOS": "3",
+        "Q FO": "1",
+        "ID CALLE": "170",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 4,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CAMPANA 255",
+        "NAP": "NRARD10",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "37",
+        "N° FO ASIGNADO": "2",
+        "RAMA": "D",
+        "SALIDA": "4",
+        "DIRECCION NAP": "CAMPANA 250",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "170",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 6,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CAMPANA 262",
+        "NAP": "NRARD10",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "25",
+        "N° FO ASIGNADO": "3",
+        "RAMA": "F",
+        "SALIDA": "6",
+        "DIRECCION NAP": "CAMPANA 250",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "170",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 2,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CAMPANA 275",
+        "NAP": "NRARD10",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "25",
+        "N° FO ASIGNADO": "3",
+        "RAMA": "E",
+        "SALIDA": "5",
+        "DIRECCION NAP": "CAMPANA 250",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "170",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 6,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CAMPANA 276",
+        "NAP": "NRARD10",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "26",
+        "N° FO ASIGNADO": "4",
+        "RAMA": "G",
+        "SALIDA": "7",
+        "DIRECCION NAP": "CAMPANA 250",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "170",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 2,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CAMPANA 281",
+        "NAP": "NRARD10",
+        "CDO": "NRARD10B2",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "10",
+        "N° FO ASIGNADO": "1",
+        "RAMA": "B",
+        "SALIDA": "2",
+        "DIRECCION NAP": "CAMPANA 250",
+        "Q CDOS": "2",
+        "Q FO": "1",
+        "ID CALLE": "170",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 4,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CAMPANA 342",
+        "NAP": "NRARD05",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "27",
+        "N° FO ASIGNADO": "2",
+        "RAMA": "C",
+        "SALIDA": "3",
+        "DIRECCION NAP": "CAMPANA 310",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "170",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 1,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CAMPANA 374",
+        "NAP": "NRARD05",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "34",
+        "N° FO ASIGNADO": "1",
+        "RAMA": "B",
+        "SALIDA": "2",
+        "DIRECCION NAP": "CAMPANA 310",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "170",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CAMPANA 393",
+        "NAP": "NRARD05",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "24",
+        "N° FO ASIGNADO": "2",
+        "RAMA": "D",
+        "SALIDA": "4",
+        "DIRECCION NAP": "CAMPANA 310",
+        "Q CDOS": "3",
+        "Q FO": "1",
+        "ID CALLE": "170",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 13,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CONCORDIA 132",
+        "NAP": "NRARD03",
+        "CDO": "NRARD03A2",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "14",
+        "N° FO ASIGNADO": "9",
+        "RAMA": "A",
+        "SALIDA": "1",
+        "DIRECCION NAP": "CONCORDIA 170",
+        "Q CDOS": "2",
+        "Q FO": "1",
+        "ID CALLE": "166",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 1,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CONCORDIA 135",
+        "NAP": "NRARD03",
+        "CDO": "-",
+        "TIPO EDIFICIO": "41 A 80 UF",
+        "TIPO INST": "PRECO",
+        "UF DEDICADO": "43",
+        "N° FO ASIGNADO": "10",
+        "RAMA": "PRECO 9",
+        "SALIDA": "9",
+        "DIRECCION NAP": "CONCORDIA 170",
+        "Q CDOS": "6",
+        "Q FO": "1",
+        "ID CALLE": "166",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 2,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CONCORDIA 160",
+        "NAP": "NRARD03",
+        "CDO": "NRARD03B2",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "15",
+        "N° FO ASIGNADO": "9",
+        "RAMA": "B",
+        "SALIDA": "2",
+        "DIRECCION NAP": "CONCORDIA 170",
+        "Q CDOS": "2",
+        "Q FO": "1",
+        "ID CALLE": "166",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CONCORDIA 162",
+        "NAP": "NRARD03",
+        "CDO": "NRARD03B2",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "15",
+        "N° FO ASIGNADO": "9",
+        "RAMA": "B",
+        "SALIDA": "2",
+        "DIRECCION NAP": "CONCORDIA 170",
+        "Q CDOS": "2",
+        "Q FO": "1",
+        "ID CALLE": "166",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 8,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CONCORDIA 218",
+        "NAP": "NRARD02",
+        "CDO": "NRARD02A2",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "12",
+        "N° FO ASIGNADO": "5",
+        "RAMA": "A",
+        "SALIDA": "1",
+        "DIRECCION NAP": "CONCORDIA 240",
+        "Q CDOS": "2",
+        "Q FO": "1",
+        "ID CALLE": "166",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 1,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CONCORDIA 226",
+        "NAP": "NRARD02",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "19",
+        "N° FO ASIGNADO": "7",
+        "RAMA": "F",
+        "SALIDA": "6",
+        "DIRECCION NAP": "CONCORDIA 240",
+        "Q CDOS": "3",
+        "Q FO": "1",
+        "ID CALLE": "166",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 12,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CONCORDIA 232",
+        "NAP": "NRARD02",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "26",
+        "N° FO ASIGNADO": "7",
+        "RAMA": "E",
+        "SALIDA": "5",
+        "DIRECCION NAP": "CONCORDIA 240",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "166",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 5,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CONCORDIA 233",
+        "NAP": "NRARD02",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "23",
+        "N° FO ASIGNADO": "8",
+        "RAMA": "G",
+        "SALIDA": "7",
+        "DIRECCION NAP": "CONCORDIA 240",
+        "Q CDOS": "3",
+        "Q FO": "1",
+        "ID CALLE": "166",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CONCORDIA 246",
+        "NAP": "NRARD02",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "26",
+        "N° FO ASIGNADO": "6",
+        "RAMA": "D",
+        "SALIDA": "4",
+        "DIRECCION NAP": "CONCORDIA 240",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "166",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 1,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CONCORDIA 260",
+        "NAP": "NRARD02",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "24",
+        "N° FO ASIGNADO": "6",
+        "RAMA": "C",
+        "SALIDA": "3",
+        "DIRECCION NAP": "CONCORDIA 240",
+        "Q CDOS": "3",
+        "Q FO": "1",
+        "ID CALLE": "166",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 2,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CONCORDIA 285",
+        "NAP": "NRARD02",
+        "CDO": "NRARD02B2",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "14",
+        "N° FO ASIGNADO": "5",
+        "RAMA": "B",
+        "SALIDA": "2",
+        "DIRECCION NAP": "CONCORDIA 240",
+        "Q CDOS": "2",
+        "Q FO": "1",
+        "ID CALLE": "166",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 2,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CONCORDIA 321",
+        "NAP": "NRARD09",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "20",
+        "N° FO ASIGNADO": "18",
+        "RAMA": "D",
+        "SALIDA": "4",
+        "DIRECCION NAP": "CONCORDIA 380",
+        "Q CDOS": "3",
+        "Q FO": "1",
+        "ID CALLE": "166",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 1,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CONCORDIA 335",
+        "NAP": "NRARD09",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "36",
+        "N° FO ASIGNADO": "19",
+        "RAMA": "E",
+        "SALIDA": "5",
+        "DIRECCION NAP": "CONCORDIA 380",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "166",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 1,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CONCORDIA 338",
+        "NAP": "NRARD09",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "21",
+        "N° FO ASIGNADO": "18",
+        "RAMA": "C",
+        "SALIDA": "3",
+        "DIRECCION NAP": "CONCORDIA 380",
+        "Q CDOS": "3",
+        "Q FO": "1",
+        "ID CALLE": "166",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CONCORDIA 341",
+        "NAP": "NRARD09",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "36",
+        "N° FO ASIGNADO": "19",
+        "RAMA": "F",
+        "SALIDA": "6",
+        "DIRECCION NAP": "CONCORDIA 380",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "166",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 7,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CONCORDIA 347",
+        "NAP": "NRARD09",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "40",
+        "N° FO ASIGNADO": "20",
+        "RAMA": "G",
+        "SALIDA": "7",
+        "DIRECCION NAP": "CONCORDIA 380",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "166",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CONCORDIA 358",
+        "NAP": "NRARD09",
+        "CDO": "-",
+        "TIPO EDIFICIO": "41 A 80 UF",
+        "TIPO INST": "PRECO",
+        "UF DEDICADO": "63",
+        "N° FO ASIGNADO": "21",
+        "RAMA": "PRECO 9",
+        "SALIDA": "9",
+        "DIRECCION NAP": "CONCORDIA 380",
+        "Q CDOS": "8",
+        "Q FO": "1",
+        "ID CALLE": "166",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CONCORDIA 373",
+        "NAP": "NRARD09",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "29",
+        "N° FO ASIGNADO": "20",
+        "RAMA": "H",
+        "SALIDA": "8",
+        "DIRECCION NAP": "CONCORDIA 380",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "166",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 17,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CONCORDIA 391",
+        "NAP": "NRARD09",
+        "CDO": "NRARD09B2",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "14",
+        "N° FO ASIGNADO": "17",
+        "RAMA": "B",
+        "SALIDA": "2",
+        "DIRECCION NAP": "CONCORDIA 380",
+        "Q CDOS": "2",
+        "Q FO": "1",
+        "ID CALLE": "166",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 6,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CUENCA 302",
+        "NAP": "NRARD06",
+        "CDO": "NRARD06A2",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "8",
+        "N° FO ASIGNADO": "3",
+        "RAMA": "A",
+        "SALIDA": "1",
+        "DIRECCION NAP": "BOGOTA 3270",
+        "Q CDOS": "1",
+        "Q FO": "1",
+        "ID CALLE": "144",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 1,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CUENCA 332",
+        "NAP": "NRARD07",
+        "CDO": "-",
+        "TIPO EDIFICIO": "41 A 80 UF",
+        "TIPO INST": "PRECO",
+        "UF DEDICADO": "58",
+        "N° FO ASIGNADO": "12",
+        "RAMA": "PRECO 9",
+        "SALIDA": "9",
+        "DIRECCION NAP": "CUENCA 360",
+        "Q CDOS": "8",
+        "Q FO": "1",
+        "ID CALLE": "144",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CUENCA 346",
+        "NAP": "NRARD07",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "25",
+        "N° FO ASIGNADO": "10",
+        "RAMA": "C",
+        "SALIDA": "3",
+        "DIRECCION NAP": "CUENCA 360",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "144",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 14,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CUENCA 355",
+        "NAP": "NRARD07",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "36",
+        "N° FO ASIGNADO": "10",
+        "RAMA": "D",
+        "SALIDA": "4",
+        "DIRECCION NAP": "CUENCA 360",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "144",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "CUENCA 365",
+        "NAP": "NRARD07",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "28",
+        "N° FO ASIGNADO": "11",
+        "RAMA": "E",
+        "SALIDA": "5",
+        "DIRECCION NAP": "CUENCA 360",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "144",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "FLORES GRAL VENANCIO 2935",
+        "NAP": "NRARD14",
+        "CDO": "-",
+        "TIPO EDIFICIO": "> 80 UF",
+        "TIPO INST": "FO DEDICADA",
+        "UF DEDICADO": "65",
+        "N° FO ASIGNADO": "21",
+        "RAMA": "DEDIC",
+        "SALIDA": "DEDIC",
+        "DIRECCION NAP": "GRAL. VENACIO FLORES 2939",
+        "Q CDOS": "9",
+        "Q FO": "1",
+        "ID CALLE": "104",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 3,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "FLORES GRAL VENANCIO 2955",
+        "NAP": "NRARD14",
+        "CDO": "-",
+        "TIPO EDIFICIO": "41 A 80 UF",
+        "TIPO INST": "PRECO",
+        "UF DEDICADO": "45",
+        "N° FO ASIGNADO": "19",
+        "RAMA": "PRECO 9",
+        "SALIDA": "9",
+        "DIRECCION NAP": "GRAL. VENACIO FLORES 2939",
+        "Q CDOS": "6",
+        "Q FO": "1",
+        "ID CALLE": "104",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "FLORES GRAL VENANCIO 2959",
+        "NAP": "NRARD14",
+        "CDO": "-",
+        "TIPO EDIFICIO": "41 A 80 UF",
+        "TIPO INST": "PRECO",
+        "UF DEDICADO": "45",
+        "N° FO ASIGNADO": "19",
+        "RAMA": "PRECO 9",
+        "SALIDA": "9",
+        "DIRECCION NAP": "GRAL. VENACIO FLORES 2939",
+        "Q CDOS": "6",
+        "Q FO": "1",
+        "ID CALLE": "104",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "FLORES GRAL VENANCIO 2965",
+        "NAP": "NRARD14",
+        "CDO": "-",
+        "TIPO EDIFICIO": "41 A 80 UF",
+        "TIPO INST": "PRECO",
+        "UF DEDICADO": "45",
+        "N° FO ASIGNADO": "19",
+        "RAMA": "PRECO 9",
+        "SALIDA": "9",
+        "DIRECCION NAP": "GRAL. VENACIO FLORES 2939",
+        "Q CDOS": "6",
+        "Q FO": "1",
+        "ID CALLE": "104",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "FLORES GRAL VENANCIO 2977",
+        "NAP": "NRARD14",
+        "CDO": "-",
+        "TIPO EDIFICIO": "41 A 80 UF",
+        "TIPO INST": "PRECO",
+        "UF DEDICADO": "58",
+        "N° FO ASIGNADO": "20",
+        "RAMA": "PRECO 10",
+        "SALIDA": "10",
+        "DIRECCION NAP": "GRAL. VENACIO FLORES 2939",
+        "Q CDOS": "8",
+        "Q FO": "1",
+        "ID CALLE": "104",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "FLORES GRAL VENANCIO 3029",
+        "NAP": "NRARD13",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "36",
+        "N° FO ASIGNADO": "15",
+        "RAMA": "B",
+        "SALIDA": "2",
+        "DIRECCION NAP": "GRAL. VENACIO FLORES 3049",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "104",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "FLORES GRAL VENANCIO 3055",
+        "NAP": "NRARD13",
+        "CDO": "-",
+        "TIPO EDIFICIO": "41 A 80 UF",
+        "TIPO INST": "PRECO",
+        "UF DEDICADO": "56",
+        "N° FO ASIGNADO": "16",
+        "RAMA": "PRECO 9",
+        "SALIDA": "9",
+        "DIRECCION NAP": "GRAL. VENACIO FLORES 3049",
+        "Q CDOS": "7",
+        "Q FO": "1",
+        "ID CALLE": "104",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "FLORES GRAL VENANCIO 3077",
+        "NAP": "NRARD13",
+        "CDO": "-",
+        "TIPO EDIFICIO": "41 A 80 UF",
+        "TIPO INST": "PRECO",
+        "UF DEDICADO": "50",
+        "N° FO ASIGNADO": "17",
+        "RAMA": "PRECO 10",
+        "SALIDA": "10",
+        "DIRECCION NAP": "GRAL. VENACIO FLORES 3049",
+        "Q CDOS": "7",
+        "Q FO": "1",
+        "ID CALLE": "104",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "FLORES GRAL VENANCIO 3087",
+        "NAP": "NRARD13",
+        "CDO": "NRARD13A2",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "8",
+        "N° FO ASIGNADO": "15",
+        "RAMA": "A",
+        "SALIDA": "1",
+        "DIRECCION NAP": "GRAL. VENACIO FLORES 3049",
+        "Q CDOS": "1",
+        "Q FO": "1",
+        "ID CALLE": "104",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "FLORES GRAL VENANCIO 3089",
+        "NAP": "NRARD13",
+        "CDO": "NRARD13A2",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "8",
+        "N° FO ASIGNADO": "15",
+        "RAMA": "A",
+        "SALIDA": "1",
+        "DIRECCION NAP": "GRAL. VENACIO FLORES 3049",
+        "Q CDOS": "1",
+        "Q FO": "1",
+        "ID CALLE": "104",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "FLORES GRAL VENANCIO 3091",
+        "NAP": "NRARD13",
+        "CDO": "NRARD13A2",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "8",
+        "N° FO ASIGNADO": "15",
+        "RAMA": "A",
+        "SALIDA": "1",
+        "DIRECCION NAP": "GRAL. VENACIO FLORES 3049",
+        "Q CDOS": "1",
+        "Q FO": "1",
+        "ID CALLE": "104",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 2,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "FLORES GRAL VENANCIO 3145",
+        "NAP": "NRARD12",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "34",
+        "N° FO ASIGNADO": "12",
+        "RAMA": "C",
+        "SALIDA": "3",
+        "DIRECCION NAP": "GRAL. VENACIO FLORES 3199",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "104",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "FLORES GRAL VENANCIO 3165",
+        "NAP": "NRARD12",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "32",
+        "N° FO ASIGNADO": "12",
+        "RAMA": "D",
+        "SALIDA": "4",
+        "DIRECCION NAP": "GRAL. VENACIO FLORES 3199",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "104",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 2,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "FLORES GRAL VENANCIO 3167",
+        "NAP": "NRARD12",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "34",
+        "N° FO ASIGNADO": "13",
+        "RAMA": "E",
+        "SALIDA": "5",
+        "DIRECCION NAP": "GRAL. VENACIO FLORES 3199",
+        "Q CDOS": "4",
+        "Q FO": "1",
+        "ID CALLE": "104",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 0,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "FLORES GRAL VENANCIO 3245",
+        "NAP": "NRARD12",
+        "CDO": "NRARD12B2",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "11",
+        "N° FO ASIGNADO": "11",
+        "RAMA": "B",
+        "SALIDA": "2",
+        "DIRECCION NAP": "GRAL. VENACIO FLORES 3199",
+        "Q CDOS": "2",
+        "Q FO": "1",
+        "ID CALLE": "104",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 3,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    },
+    {
+        "REGION": "AMBA",
+        "CENTRAL": "NRA",
+        "PD": "R",
+        "DIRECCION EDIFICIO": "FLORES GRAL VENANCIO 3265",
+        "NAP": "NRARD12",
+        "CDO": "-",
+        "TIPO EDIFICIO": "< 41 UF",
+        "TIPO INST": "RAMA EDIF",
+        "UF DEDICADO": "23",
+        "N° FO ASIGNADO": "13",
+        "RAMA": "F",
+        "SALIDA": "6",
+        "DIRECCION NAP": "GRAL. VENACIO FLORES 3199",
+        "Q CDOS": "3",
+        "Q FO": "1",
+        "ID CALLE": "104",
+        "PROVEEDOR": "ZUMAF",
+        "CANTIDAD_ACTIVOS": 1,
+        "PC": "NRARD",
+        "PD_CONCAT": "NRA R"
+    }
+];</script>
+    <script>
+// ✅ NUEVA FUNCIÓN AUXILIAR PARA CONVERTIR ARCHIVOS A BASE64
+function convertFilesToBase64(files) {
+    const promises = files.map(file => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+    });
+    return Promise.all(promises);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // --- ESTADO GLOBAL DE LA APP ---
+    let appState = {
+        db: null,
+        closuresCollection: null,
+        providerName: "No definido",
+        collectionName: "default_collection",
+        pendingData: [...(typeof edificiosData !== 'undefined' ? edificiosData : [])],
+        completedData: [],
+        selectedPendingBuilding: null,
+        selectedCompletedBuilding: null,
+        modalFunctions: {}
+    };
+
+    // --- INICIALIZACIÓN ---
+    function initializeApp() {
+        if (typeof edificiosData === 'undefined') {
+            console.error("No se encontraron datos de edificios.");
+            document.body.innerHTML = '<p class="text-red-500 text-center p-8">Error: No se pudieron cargar los datos de los edificios.</p>';
+            return;
+        }
+
+        appState.modalFunctions = setupAllModals();
+        setupUIListeners();
+
+        try {
+            const app = firebase.initializeApp(firebaseConfig);
+            appState.db = firebase.firestore();
+            appState.providerName = edificiosData.length > 0 ? edificiosData[0].PROVEEDOR : "No definido";
+            appState.collectionName = appState.providerName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+            appState.closuresCollection = appState.db.collection(appState.collectionName);
+            console.log("Firebase inicializado.");
+            setupFirestoreListener();
+        } catch (e) {
+            console.error("Error inicializando Firebase:", e);
+            showToast("Error crítico al conectar con Firebase.", "error");
+            return;
+        }
+        
+        document.getElementById('providerName').textContent = appState.providerName;
+        switchView('pending');
+        renderPendingList();
+    }
+
+    // --- LÓGICA DE FIREBASE ---
+    function setupFirestoreListener() {
+        appState.closuresCollection.orderBy("timestamp", "desc").onSnapshot(snapshot => {
+            console.log("Datos recibidos de Firebase.");
+            appState.completedData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            appState.pendingData = edificiosData.filter(p => !appState.completedData.some(c => c.id === p['DIRECCION EDIFICIO']));
+            
+            renderPendingList();
+            renderCompletedList();
+
+            if (appState.selectedPendingBuilding && !appState.pendingData.some(p => p['DIRECCION EDIFICIO'] === appState.selectedPendingBuilding['DIRECCION EDIFICIO'])) {
+                appState.selectedPendingBuilding = null;
+                document.getElementById('pendingBuildingInfoCard').innerHTML = '<p class="text-gray-500 text-center">Seleccione un edificio de la lista para ver sus detalles.</p>';
+                document.getElementById('pendingActionButtonContainer').innerHTML = '';
+            }
+            if (appState.selectedCompletedBuilding && !appState.completedData.some(c => c.id === appState.selectedCompletedBuilding.id)) {
+                appState.selectedCompletedBuilding = null;
+                document.getElementById('completedBuildingInfoCard').innerHTML = '<p class="text-gray-500 text-center">Seleccione un cierre de la lista para ver sus detalles.</p>';
+            }
+        }, error => {
+            console.error("Error al obtener datos de Firebase: ", error);
+            showToast("Error de conexión con la base de datos.", "error");
+        });
+    }
+
+    // --- LÓGICA DE SUBMIT Y REVERSIÓN ---
+    async function handleReportSubmit(event) {
+        event.preventDefault();
+        const form = document.getElementById('reportForm');
+        const submitButton = document.getElementById('submitReportBtn');
+        const editingId = form.dataset.editingId;
+
+        if (!submitButton) return;
+
+        const buildingData = editingId ? appState.completedData.find(c => c.id === editingId) : appState.selectedPendingBuilding;
+
+        if (!buildingData || !buildingData['DIRECCION EDIFICIO']) {
+            showToast("Error: No hay un edificio válido seleccionado.", "error");
+            return;
+        }
+
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<div class="loader mx-auto"></div>';
+
+        const buildingDataForSheet = Object.fromEntries(
+            Object.entries(buildingData).map(([key, value]) => [key.replace(/[^a-zA-Z0-9]/g, '_'), value])
+        );
+        
+        // ✅ CONVERTIR FOTOS A BASE64 ANTES DE ENVIAR
+        const photosBase64 = await convertFilesToBase64(appState.modalFunctions.getReportFiles());
+
+        const dataToSend = {
+            ...buildingDataForSheet,
+            causal: document.getElementById('reportCloseReason').value,
+            observaciones: document.getElementById('reportObservations').value,
+            reportedBy: 'Sistema Web',
+            isOffPlan: buildingData.isOffPlan || false,
+            driveFolderUrl: buildingData.driveFolderUrl || '',
+            action: editingId ? 'update' : 'create',
+            newPhotosBase64: photosBase64 // ✅ AÑADIR FOTOS AL ENVÍO
+        };
+
+        try {
+            const response = await fetch(GOOGLE_APP_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'cors',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(dataToSend)
+            });
+            const result = await response.json();
+
+            if (result.status !== 'success') {
+                throw new Error(result.message || 'Error desconocido en Google Apps Script.');
+            }
+            
+            const buildingId = buildingData.id || buildingData['DIRECCION EDIFICIO'];
+            const closureData = {
+                ...buildingData,
+                causal: dataToSend.causal,
+                observaciones: dataToSend.observaciones,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                reportedBy: dataToSend.reportedBy,
+                driveFolderUrl: result.folderUrl || dataToSend.driveFolderUrl
+            };
+
+            if (editingId) {
+                await appState.closuresCollection.doc(editingId).update(closureData);
+                showToast("¡Cierre actualizado con éxito!");
+            } else {
+                await appState.closuresCollection.doc(buildingId).set(closureData);
+                showToast("¡Cierre informado con éxito!");
+            }
+            
+            appState.modalFunctions.closeModal(document.getElementById('reportModal'), document.getElementById('reportModalBackdrop'));
+
+        } catch (error) {
+            console.error("Error en el proceso de cierre: ", error);
+            showToast("Error al procesar el cierre: " + error.message, "error");
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = editingId ? 'GUARDAR CAMBIOS' : 'COMPLETAR CIERRE';
+            delete form.dataset.editingId;
+        }
+    }
+
+    async function handleOffPlanSubmit(event) {
+        event.preventDefault();
+        const form = document.getElementById('offPlanReportForm');
+        const submitButton = document.getElementById('submitOffPlanBtn');
+        const editingId = form.dataset.editingId;
+        if (!submitButton) return;
+
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<div class="loader mx-auto"></div>';
+
+        const newAddress = form.elements.offPlanAddress.value;
+        const newNap = form.elements.offPlanNap.value;
+
+        if (!newAddress || !newNap) {
+            showToast("La Dirección y el NAP son obligatorios.", "error");
+            submitButton.disabled = false;
+            submitButton.innerHTML = 'COMPLETAR CIERRE';
+            return;
+        }
+        
+        // ✅ CONVERTIR FOTOS A BASE64 ANTES DE ENVIAR
+        const photosBase64 = await convertFilesToBase64(appState.modalFunctions.getOffPlanFiles());
+
+        const newId = editingId || newAddress;
+        const existingData = editingId ? appState.completedData.find(c => c.id === editingId) : {};
+
+        const dataToSend = {
+            ...existingData,
+            DIRECCION_EDIFICIO: newAddress,
+            NAP: newNap,
+            PC: newNap.substring(0, 5),
+            CDO: form.elements.offPlanCdo.value,
+            PROVEEDOR: appState.providerName,
+            causal: form.elements.offPlanCloseReason.value,
+            observaciones: form.elements.offPlanObservations.value,
+            reportedBy: 'Sistema Web (Fuera de Plan)',
+            isOffPlan: true,
+            action: editingId ? 'update' : 'create',
+            newPhotosBase64: photosBase64 // ✅ AÑADIR FOTOS AL ENVÍO
+        };
+        
+        const sanitizedData = Object.fromEntries(
+            Object.entries(dataToSend).map(([key, value]) => [key.replace(/[^a-zA-Z0-9]/g, '_'), value])
+        );
+
+        try {
+            const response = await fetch(GOOGLE_APP_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'cors',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(sanitizedData)
+            });
+            const result = await response.json();
+
+            if (result.status !== 'success') {
+                throw new Error(result.message || 'Error desconocido en Google Apps Script.');
+            }
+
+            const closureData = {
+                ...existingData,
+                'DIRECCION EDIFICIO': dataToSend.DIRECCION_EDIFICIO,
+                'NAP': dataToSend.NAP,
+                'PC': dataToSend.PC,
+                'CDO': dataToSend.CDO,
+                'PROVEEDOR': dataToSend.PROVEEDOR,
+                causal: dataToSend.causal,
+                observaciones: dataToSend.observaciones,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                reportedBy: dataToSend.reportedBy,
+                isOffPlan: true,
+                driveFolderUrl: result.folderUrl || existingData.driveFolderUrl
+            };
+            
+            if (editingId) {
+                 await appState.closuresCollection.doc(newId).update(closureData);
+                 showToast("¡Cierre actualizado con éxito!");
+            } else {
+                 await appState.closuresCollection.doc(newId).set(closureData);
+                 showToast("¡Cierre fuera de plan informado con éxito!");
+            }
+            
+            appState.modalFunctions.closeModal(document.getElementById('offPlanModal'), document.getElementById('offPlanModalBackdrop'));
+
+        } catch (error) {
+            console.error("Error en el proceso de cierre fuera de plan: ", error);
+            showToast("Error al procesar el cierre: " + error.message, "error");
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = editingId ? 'GUARDAR CAMBIOS' : 'COMPLETAR CIERRE';
+            delete form.dataset.editingId;
+        }
+    }
+
+    async function deleteOrRevertClosure(cierre, isDelete) {
+        const password = prompt("Ingrese la contraseña para continuar:");
+        if (password !== "0658") {
+            if (password !== null) showToast("Contraseña incorrecta.", "error");
+            return;
+        }
+
+        const actionText = isDelete ? "eliminar" : "revertir";
+        if (!confirm(`¿Está seguro que desea ${actionText} el cierre de "${cierre['DIRECCION EDIFICIO']}"?`)) {
+            return;
+        }
+
+        try {
+            const dataToSend = {
+                ...cierre,
+                action: 'delete',
+                DIRECCION_EDIFICIO: cierre['DIRECCION EDIFICIO']
+            };
+
+            const response = await fetch(GOOGLE_APP_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'cors',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(dataToSend)
+            });
+            const result = await response.json();
+
+            if (result.status !== 'success') {
+                throw new Error(result.message || 'Error en Google Apps Script al eliminar.');
+            }
+
+            await appState.closuresCollection.doc(cierre.id).delete();
+            showToast(`El cierre ha sido ${actionText}do correctamente.`);
+
+        } catch (error) {
+            console.error(`Error al ${actionText} el cierre: `, error);
+            showToast(`Error al ${actionText} el cierre. Intente de nuevo.`, "error");
+        }
+    }
+
+    // --- RENDERIZADO Y UI ---
+    function renderPendingList() { renderList(appState.pendingData, document.getElementById('pendingSearchBox').value, document.getElementById('pendingBuildingList'), appState.selectedPendingBuilding, handlePendingBuildingClick); }
+    function renderCompletedList() { renderList(appState.completedData, document.getElementById('completedSearchBox').value, document.getElementById('completedBuildingList'), appState.selectedCompletedBuilding, handleCompletedBuildingClick); }
+
+    function renderList(data, filter, listElement, selectedItem, clickHandler) {
+        listElement.innerHTML = '';
+        const lowerCaseFilter = filter.toLowerCase();
+        const filteredData = data.filter(edificio => (edificio['DIRECCION EDIFICIO'] || '').toLowerCase().includes(lowerCaseFilter));
+
+        if (filteredData.length === 0) {
+            listElement.innerHTML = '<p class="text-gray-500 text-center p-4">No se encontraron edificios.</p>';
+            return;
+        }
+
+        filteredData.forEach(edificio => {
+            const listItem = document.createElement('div');
+            const isSelected = selectedItem && (selectedItem.id || selectedItem['DIRECCION EDIFICIO']) === (edificio.id || edificio['DIRECCION EDIFICIO']);
+            listItem.className = `p-3 mb-2 rounded-lg cursor-pointer transition-colors duration-200 ${isSelected ? 'item-selected' : 'item-default'}`;
+            listItem.textContent = edificio['DIRECCION EDIFICIO'];
+            listItem.addEventListener('click', () => clickHandler(edificio));
+            listElement.appendChild(listItem);
+        });
+    }
+
+    function renderPendingInfoCard(edificio) {
+        const card = document.getElementById('pendingBuildingInfoCard');
+        card.innerHTML = `
+            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <dt class="font-semibold text-gray-600 col-span-full">Dirección:</dt>
+                <dd class="text-gray-800 col-span-full mb-2">${edificio['DIRECCION EDIFICIO'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-600">PD:</dt> <dd class="text-gray-800">${edificio['PD_CONCAT'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-600">PC:</dt> <dd class="text-gray-800">${edificio['PC'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-600">NAP:</dt> <dd class="text-gray-800">${edificio['NAP'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-600">CDO:</dt> <dd class="text-gray-800">${edificio['CDO'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-600">Tipo Edificio:</dt> <dd class="text-gray-800">${edificio['TIPO EDIFICIO'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-600">Tipo Inst:</dt> <dd class="text-gray-800">${edificio['TIPO INST'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-600">UF Dedicado:</dt> <dd class="text-gray-800">${edificio['UF DEDICADO'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-600">N° FO Asignado:</dt> <dd class="text-gray-800 font-mono">${edificio['N° FO ASIGNADO'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-600">Rama:</dt> <dd class="text-gray-800">${edificio['RAMA'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-600">Salida:</dt> <dd class="text-gray-800">${edificio['SALIDA'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-600">Dirección NAP:</dt> <dd class="text-gray-800">${edificio['DIRECCION NAP'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-600">Q CDO:</dt> <dd class="text-gray-800">${edificio['Q CDOS'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-600">Q FO:</dt> <dd class="text-gray-800">${edificio['Q FO'] || 'N/A'}</dd>
+                <dt class="font-semibold text-green-700 col-span-full mt-2">Cantidad Activos:</dt>
+                <dd class="text-green-700 font-bold text-lg col-span-full">${edificio['CANTIDAD_ACTIVOS'] || '0'}</dd>
+            </dl>
+        `;
+        renderPendingActionButton();
+    }
+
+    function renderCompletedInfoCard(cierre) {
+        const card = document.getElementById('completedBuildingInfoCard');
+        const revertButtonHtml = cierre.isOffPlan 
+            ? `<button class="delete-closure-btn flex-1 bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-md">ELIMINAR</button>`
+            : `<button class="revert-closure-btn flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md">REVERTIR A PENDIENTE</button>`;
+
+        card.innerHTML = `
+            <div>
+                <h4 class="font-bold text-lg mb-2">${cierre['DIRECCION EDIFICIO']}</h4>
+                <dl class="space-y-3 text-sm">
+                    <div><dt class="font-semibold text-gray-600">Causal:</dt><dd class="text-gray-800 font-medium p-2 bg-blue-100 rounded-md mt-1">${cierre.causal}</dd></div>
+                    <div><dt class="font-semibold text-gray-600">Observaciones:</dt><dd class="text-gray-800 p-2 bg-gray-100 rounded-md mt-1 whitespace-pre-wrap">${cierre.observaciones}</dd></div>
+                    <div>
+                        <dt class="font-semibold text-gray-600">Carpeta de Archivos:</dt>
+                        <dd><a href="${cierre.driveFolderUrl}" target="_blank" class="text-blue-600 hover:underline">Abrir Carpeta en Drive</a></dd>
+                    </div>
+                </dl>
+                <div class="mt-6 flex space-x-3">
+                    <button class="edit-closure-btn flex-1 bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-md">EDITAR</button>
+                    ${revertButtonHtml}
+                </div>
+            </div>
+        `;
+        card.querySelector('.edit-closure-btn').addEventListener('click', () => appState.modalFunctions.openEditModal(cierre));
+        
+        const revertBtn = card.querySelector('.revert-closure-btn');
+        const deleteBtn = card.querySelector('.delete-closure-btn');
+        if(revertBtn) revertBtn.addEventListener('click', () => deleteOrRevertClosure(cierre, false));
+        if(deleteBtn) deleteBtn.addEventListener('click', () => deleteOrRevertClosure(cierre, true));
+    }
+
+    function renderPendingActionButton() {
+        document.getElementById('pendingActionButtonContainer').innerHTML = `
+            <button id="reportConstructionBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg">INFORMAR CONSTRUCCIÓN</button>
+        `;
+        document.getElementById('reportConstructionBtn').addEventListener('click', () => {
+            if (appState.selectedPendingBuilding) {
+                appState.modalFunctions.openReportModal(appState.selectedPendingBuilding);
+            } else {
+                showToast("Por favor, seleccione un edificio pendiente primero.", "error");
+            }
+        });
+    }
+
+    function handlePendingBuildingClick(edificio) {
+        appState.selectedPendingBuilding = edificio;
+        renderPendingList();
+        renderPendingInfoCard(edificio);
+    }
+    
+    function handleCompletedBuildingClick(cierre) {
+        appState.selectedCompletedBuilding = cierre;
+        renderCompletedList();
+        renderCompletedInfoCard(cierre);
+    }
+
+    function switchView(view) {
+        const pendingView = document.getElementById('pendingView');
+        const completedView = document.getElementById('completedView');
+        const pendingTab = document.getElementById('pendingTab');
+        const completedTab = document.getElementById('completedTab');
+        if (view === 'pending') {
+            pendingView.classList.remove('hidden');
+            completedView.classList.add('hidden');
+            pendingTab.classList.add('tab-active');
+            pendingTab.classList.remove('tab-inactive');
+            completedTab.classList.add('tab-inactive');
+            completedTab.classList.remove('tab-active');
+        } else {
+            pendingView.classList.add('hidden');
+            completedView.classList.remove('hidden');
+            pendingTab.classList.remove('tab-active');
+            pendingTab.classList.add('tab-inactive');
+            completedTab.classList.add('tab-active');
+            completedTab.classList.remove('tab-inactive');
+        }
+    }
+
+    function setupUIListeners() {
+        document.getElementById('pendingTab').addEventListener('click', () => switchView('pending'));
+        document.getElementById('completedTab').addEventListener('click', () => switchView('completed'));
+        document.getElementById('pendingSearchBox').addEventListener('input', () => renderPendingList());
+        document.getElementById('completedSearchBox').addEventListener('input', () => renderCompletedList());
+        document.getElementById('reportForm').addEventListener('submit', handleReportSubmit);
+        document.getElementById('offPlanReportForm').addEventListener('submit', handleOffPlanSubmit);
+    }
+
+    function showToast(message, type = 'success') {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.className = 'toast';
+        toast.classList.add(type === 'success' ? 'toast-success' : 'toast-error');
+        toast.classList.add('show');
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3000);
+    }
+
+    initializeApp();
+});
+
+function setupAllModals() {
+    const reportModal = document.getElementById('reportModal');
+    const reportModalBackdrop = document.getElementById('reportModalBackdrop');
+    const reportModalTitle = document.getElementById('reportModalTitle');
+    const closeReportModalButton = document.getElementById('closeReportModalBtn');
+    const reportForm = document.getElementById('reportForm');
+    const submitReportBtn = document.getElementById('submitReportBtn');
+    const reportPhotoPreview = document.getElementById('reportPhotoPreview');
+    const reportCameraInput = document.getElementById('reportCameraInput');
+    const reportGalleryInput = document.getElementById('reportGalleryInput');
+    
+    const offPlanModal = document.getElementById('offPlanModal');
+    const offPlanModalBackdrop = document.getElementById('offPlanModalBackdrop');
+    const closeOffPlanModalButton = document.getElementById('closeOffPlanModalBtn');
+    const offPlanForm = document.getElementById('offPlanReportForm');
+    const submitOffPlanBtn = document.getElementById('submitOffPlanBtn');
+    const offPlanPhotoPreview = document.getElementById('offPlanPhotoPreview');
+    const offPlanCameraInput = document.getElementById('offPlanCameraInput');
+    const offPlanGalleryInput = document.getElementById('offPlanGalleryInput');
+
+    const offPlanButton = document.getElementById('offPlanButton');
+    let reportUploadedFiles = [];
+    let offPlanUploadedFiles = [];
+
+    function openModal(modal, backdrop) {
+        if (!modal || !backdrop) return;
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            backdrop.classList.remove('opacity-0');
+            modal.querySelector('.modal-panel').classList.remove('opacity-0', 'scale-95');
+        }, 10);
+    }
+
+    function closeModal(modal, backdrop) {
+        if (!modal || !backdrop) return;
+        backdrop.classList.add('opacity-0');
+        modal.querySelector('.modal-panel').classList.add('opacity-0', 'scale-95');
+        setTimeout(() => modal.classList.add('hidden'), 300);
+    }
+
+    function handleFiles(files, fileList, previewElement) {
+        const newFiles = [...files].slice(0, 15 - fileList.length);
+        fileList.push(...newFiles);
+        if (fileList.length > 15) fileList.splice(0, fileList.length - 15); // Corregido para que no supere 15
+        renderPhotoPreview(previewElement, fileList);
+    }
+
+    function renderPhotoPreview(previewElement, fileList) {
+        if (!previewElement) return;
+        previewElement.innerHTML = '';
+        if (fileList.length === 0) {
+            previewElement.innerHTML = '<p class="text-sm text-gray-500 col-span-full text-center">No hay fotos cargadas.</p>';
+            return;
+        }
+        fileList.forEach((file, index) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const previewContainer = document.createElement('div');
+                previewContainer.className = 'relative w-20 h-20';
+                previewContainer.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover rounded-md"><button data-index="${index}" class="remove-photo-btn absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">&times;</button>`;
+                previewElement.appendChild(previewContainer);
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    if (closeReportModalButton) closeReportModalButton.addEventListener('click', () => closeModal(reportModal, reportModalBackdrop));
+    if (reportModalBackdrop) reportModalBackdrop.addEventListener('click', () => closeModal(reportModal, reportModalBackdrop));
+    if (reportCameraInput) reportCameraInput.addEventListener('change', (e) => handleFiles(e.target.files, reportUploadedFiles, reportPhotoPreview));
+    if (reportGalleryInput) reportGalleryInput.addEventListener('change', (e) => handleFiles(e.target.files, reportUploadedFiles, reportPhotoPreview));
+    if (reportPhotoPreview) reportPhotoPreview.addEventListener('click', (e) => {
+        if (e.target.classList.contains('remove-photo-btn')) {
+            reportUploadedFiles.splice(parseInt(e.target.dataset.index, 10), 1);
+            renderPhotoPreview(reportPhotoPreview, reportUploadedFiles);
+        }
+    });
+
+    if (offPlanButton) offPlanButton.addEventListener('click', () => {
+        offPlanForm.reset();
+        delete offPlanForm.dataset.editingId;
+        submitOffPlanBtn.textContent = 'COMPLETAR CIERRE';
+        document.getElementById('offPlanAddress').disabled = false;
+        offPlanUploadedFiles = [];
+        renderPhotoPreview(offPlanPhotoPreview, offPlanUploadedFiles);
+        openModal(offPlanModal, offPlanModalBackdrop)
+    });
+    if (closeOffPlanModalButton) closeOffPlanModalButton.addEventListener('click', () => closeModal(offPlanModal, offPlanModalBackdrop));
+    if (offPlanModalBackdrop) offPlanModalBackdrop.addEventListener('click', () => closeModal(offPlanModal, offPlanModalBackdrop));
+    if (offPlanCameraInput) offPlanCameraInput.addEventListener('change', (e) => handleFiles(e.target.files, offPlanUploadedFiles, offPlanPhotoPreview));
+    if (offPlanGalleryInput) offPlanGalleryInput.addEventListener('change', (e) => handleFiles(e.target.files, offPlanUploadedFiles, offPlanPhotoPreview));
+    if (offPlanPhotoPreview) offPlanPhotoPreview.addEventListener('click', (e) => {
+        if (e.target.classList.contains('remove-photo-btn')) {
+            offPlanUploadedFiles.splice(parseInt(e.target.dataset.index, 10), 1);
+            renderPhotoPreview(offPlanPhotoPreview, offPlanUploadedFiles);
+        }
+    });
+
+    return {
+        openReportModal: (building) => {
+            if (!reportModal || !reportModalTitle) return;
+            reportModalTitle.textContent = building['DIRECCION EDIFICIO'];
+            reportForm.reset();
+            delete reportForm.dataset.editingId;
+            submitReportBtn.textContent = 'COMPLETAR CIERRE';
+            reportUploadedFiles = [];
+            renderPhotoPreview(reportPhotoPreview, reportUploadedFiles);
+            openModal(reportModal, reportModalBackdrop);
+        },
+        openEditModal: (cierre) => {
+            if (cierre.isOffPlan) {
+                offPlanForm.reset();
+                offPlanForm.dataset.editingId = cierre.id;
+                offPlanForm.elements.offPlanAddress.value = cierre['DIRECCION EDIFICIO'];
+                offPlanForm.elements.offPlanAddress.disabled = true; 
+                offPlanForm.elements.offPlanNap.value = cierre.NAP || '';
+                offPlanForm.elements.offPlanCdo.value = cierre.CDO || '';
+                offPlanForm.elements.offPlanCloseReason.value = cierre.causal;
+                offPlanForm.elements.offPlanObservations.value = cierre.observaciones;
+                submitOffPlanBtn.textContent = 'GUARDAR CAMBIOS';
+                offPlanUploadedFiles = [];
+                renderPhotoPreview(offPlanPhotoPreview, offPlanUploadedFiles);
+                openModal(offPlanModal, offPlanModalBackdrop);
+            } else {
+                reportForm.reset();
+                reportForm.dataset.editingId = cierre.id;
+                reportModalTitle.textContent = `Editando: ${cierre['DIRECCION EDIFICIO']}`;
+                reportForm.elements.reportCloseReason.value = cierre.causal;
+                reportForm.elements.reportObservations.value = cierre.observaciones;
+                submitReportBtn.textContent = 'GUARDAR CAMBIOS';
+                reportUploadedFiles = [];
+                renderPhotoPreview(reportPhotoPreview, reportUploadedFiles);
+                openModal(reportModal, reportModalBackdrop);
+            }
+        },
+        closeModal,
+        getReportFiles: () => reportUploadedFiles,
+        getOffPlanFiles: () => offPlanUploadedFiles
+    };
+}
+</script>
+</body>
+</html>

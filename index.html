@@ -12,26 +12,42 @@
     <style>
 body {
     font-family: 'Inter', sans-serif;
-    background-color: #f3f4f6; /* bg-gray-100 */
+    background-color: #f3f4f6;
+    transition: background-color 0.3s ease;
+}
+body.dark-mode {
+    background-color: #111827;
+    color: #f3f4f6;
 }
 .custom-scrollbar::-webkit-scrollbar { width: 8px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #555; }
+.badge { display: inline-block; padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+.dark-mode .custom-scrollbar::-webkit-scrollbar-track { background: #1f2937; }
+.dark-mode .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; }
 #actionButtonContainer { min-height: 50px; }
 .item-selected { background-color: #3b82f6; color: white; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
-.item-default { background-color: #f3f4f6; }
+.item-default { background-color: #f3f4f6; transition: all 0.2s; }
 .item-default:hover { background-color: #dbeafe; }
+.dark-mode .item-default { background-color: #1f2937; color: #e5e7eb; }
+.dark-mode .item-default:hover { background-color: #374151; }
 .modal-backdrop { transition: opacity 0.3s ease; }
 .modal-panel { transition: transform 0.3s ease, opacity 0.3s ease; }
 .tab { transition: all 0.2s ease-in-out; }
 .tab-active { border-bottom-width: 3px; border-color: #2563eb; color: #1d4ed8; font-weight: 600; }
 .tab-inactive { border-color: transparent; color: #6b7280; }
 .tab-inactive:hover { border-color: #9ca3af; color: #111827; }
+.dark-mode .tab-inactive { color: #9ca3af; }
+.dark-mode .tab-inactive:hover { color: #e5e7eb; }
 .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-/* Estilos para la Notificación Toast */
+.skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: loading 1.5s infinite; }
+@keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+.tooltip { position: relative; display: inline-block; }
+.tooltip .tooltiptext { visibility: hidden; background-color: #333; color: #fff; text-align: center; border-radius: 6px; padding: 5px 10px; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -60px; opacity: 0; transition: opacity 0.3s; font-size: 0.75rem; white-space: nowrap; }
+.tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
 #toast {
     position: fixed;
     top: -100px;
@@ -53,14 +69,39 @@ body {
 <body>
     <div id="toast"></div>
     <div class="container mx-auto p-4">
-        <header class="bg-white shadow rounded-lg p-6 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-800">Portal de Cierre de Obras</h1>
-                <p class="text-lg text-gray-600">Proveedor: <span class="font-semibold" id="providerName"></span></p>
+        <header class="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">Portal de Cierre de Obras</h1>
+                    <p class="text-lg text-gray-600 dark:text-gray-300">Proveedor: <span class="font-semibold" id="providerName"></span></p>
+                </div>
+                <div class="flex gap-2 mt-4 sm:mt-0">
+                    <button id="darkModeToggle" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-lg">🌙</button>
+                    <button id="offPlanButton" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                        INFORMAR CIERRE FUERA DEL PLAN
+                    </button>
+                </div>
             </div>
-            <button id="offPlanButton" class="mt-4 sm:mt-0 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
-                INFORMAR CIERRE FUERA DEL PLAN
-            </button>
+            <div class="grid grid-cols-3 gap-4 mt-4">
+                <div class="bg-blue-50 dark:bg-blue-900 p-3 rounded-lg">
+                    <div class="text-xs text-blue-600 dark:text-blue-300 font-semibold">PENDIENTES</div>
+                    <div class="text-2xl font-bold text-blue-700 dark:text-blue-200" id="statPending">0</div>
+                </div>
+                <div class="bg-green-50 dark:bg-green-900 p-3 rounded-lg">
+                    <div class="text-xs text-green-600 dark:text-green-300 font-semibold">COMPLETADOS</div>
+                    <div class="text-2xl font-bold text-green-700 dark:text-green-200" id="statCompleted">0</div>
+                </div>
+                <div class="bg-purple-50 dark:bg-purple-900 p-3 rounded-lg">
+                    <div class="text-xs text-purple-600 dark:text-purple-300 font-semibold">TOTAL</div>
+                    <div class="text-2xl font-bold text-purple-700 dark:text-purple-200" id="statTotal">0</div>
+                </div>
+            </div>
+            <div class="mt-3 flex items-center gap-3">
+                <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                    <div id="progressBar" class="bg-gradient-to-r from-blue-500 to-green-500 h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+                <div class="text-sm font-bold text-gray-700 dark:text-gray-300" id="statProgress">0%</div>
+            </div>
         </header>
 
         <div class="mb-4 border-b border-gray-200">
@@ -71,13 +112,45 @@ body {
         </div>
 
         <main id="pendingView" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="bg-white shadow rounded-lg p-6 flex flex-col"><h2 class="text-xl font-semibold mb-4">Edificios Pendientes</h2><div class="relative mb-4"><input type="text" id="pendingSearchBox" placeholder="Buscar por calle o altura..." class="w-full p-3 border border-gray-300 rounded-lg pl-10"><svg class="w-6 h-6 text-gray-400 absolute top-1/2 left-3 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg></div><div id="pendingBuildingList" class="flex-grow overflow-y-auto custom-scrollbar pr-2 h-96"></div></div>
-            <div class="bg-white shadow rounded-lg p-6"><h2 class="text-xl font-semibold mb-4">Información del Edificio</h2><div id="pendingBuildingInfoCard" class="bg-gray-50 p-4 rounded-lg min-h-[200px] flex items-center justify-center"><p class="text-gray-500 text-center">Seleccione un edificio de la lista.</p></div><div id="pendingActionButtonContainer" class="mt-6 text-center"></div></div>
+            <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6 flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold dark:text-gray-100">Edificios Pendientes</h2>
+                    <button id="viewModeToggle" data-mode="list" class="text-xs bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700">📋 Vista Tabla</button>
+                </div>
+                <div class="relative mb-3">
+                    <input type="text" id="pendingSearchBox" placeholder="Buscar por calle o altura..." class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg pl-10">
+                    <svg class="w-6 h-6 text-gray-400 absolute top-1/2 left-3 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    <select id="centralFilter" class="p-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded"><option value="">Todas las Centrales</option></select>
+                    <select id="pdFilter" class="p-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded"><option value="">Todos los PD</option></select>
+                </div>
+                <div class="mb-3">
+                    <select id="sortSelect" class="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded"><option value="direccion">Ordenar: Dirección</option><option value="activos">Ordenar: Activos</option><option value="central">Ordenar: Central</option><option value="pd">Ordenar: PD</option></select>
+                </div>
+                <div id="pendingBuildingList" class="flex-grow overflow-y-auto custom-scrollbar pr-2 h-96"></div>
+            </div>
+            <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6"><h2 class="text-xl font-semibold mb-4 dark:text-gray-100">Información del Edificio</h2><div id="pendingBuildingInfoCard" class="bg-gray-100 dark:bg-gray-900 p-4 rounded-lg min-h-[200px] flex items-center justify-center border border-gray-200 dark:border-gray-700"><p class="text-gray-500 dark:text-gray-300 text-center">Seleccione un edificio de la lista.</p></div><div id="pendingActionButtonContainer" class="mt-6 text-center"></div></div>
         </main>
 
         <main id="completedView" class="grid grid-cols-1 md:grid-cols-2 gap-6 hidden">
-            <div class="bg-white shadow rounded-lg p-6 flex flex-col"><h2 class="text-xl font-semibold mb-4">Edificios Realizados</h2><div class="relative mb-4"><input type="text" id="completedSearchBox" placeholder="Buscar por calle o altura..." class="w-full p-3 border border-gray-300 rounded-lg pl-10"><svg class="w-6 h-6 text-gray-400 absolute top-1/2 left-3 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg></div><div id="completedBuildingList" class="flex-grow overflow-y-auto custom-scrollbar pr-2 h-96"></div></div>
-            <div class="bg-white shadow rounded-lg p-6"><h2 class="text-xl font-semibold mb-4">Detalles del Cierre</h2><div id="completedBuildingInfoCard" class="bg-gray-50 p-4 rounded-lg min-h-[200px] flex items-center justify-center"><p class="text-gray-500 text-center">Seleccione un cierre de la lista.</p></div></div>
+            <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6 flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold dark:text-gray-100">Edificios Realizados</h2>
+                    <button id="viewModeToggleCompleted" data-mode="list" class="text-xs bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700">📋 Vista Tabla</button>
+                </div>
+                <div class="relative mb-3">
+                    <input type="text" id="completedSearchBox" placeholder="Buscar por calle o altura..." class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg pl-10">
+                    <svg class="w-6 h-6 text-gray-400 absolute top-1/2 left-3 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+                <div class="grid grid-cols-3 gap-2 mb-3">
+                    <select id="centralFilterCompleted" class="p-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded"><option value="">Todas las Centrales</option></select>
+                    <select id="pdFilterCompleted" class="p-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded"><option value="">Todos los PD</option></select>
+                    <select id="sortSelectCompleted" class="p-2 text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded"><option value="direccion">Por Dirección</option><option value="fecha">Por Fecha</option><option value="central">Por Central</option><option value="pd">Por PD</option></select>
+                </div>
+                <div id="completedBuildingList" class="flex-grow overflow-y-auto custom-scrollbar pr-2 h-96"></div>
+            </div>
+            <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6"><h2 class="text-xl font-semibold mb-4 dark:text-gray-100">Detalles del Cierre</h2><div id="completedBuildingInfoCard" class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg min-h-[200px] flex items-center justify-center"><p class="text-gray-500 dark:text-gray-400 text-center">Seleccione un cierre de la lista.</p></div></div>
         </main>
     </div>
 
@@ -16146,8 +16219,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         document.getElementById('providerName').textContent = appState.providerName;
+        populateFilters();
         switchView('pending');
         renderPendingList();
+        updateStats();
     }
 
     // --- LÓGICA DE FIREBASE ---
@@ -16159,6 +16234,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             renderPendingList();
             renderCompletedList();
+            updateStats();
 
             if (appState.selectedPendingBuilding && !appState.pendingData.some(p => p['DIRECCION EDIFICIO'] === appState.selectedPendingBuilding['DIRECCION EDIFICIO'])) {
                 appState.selectedPendingBuilding = null;
@@ -16389,26 +16465,90 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- RENDERIZADO Y UI ---
-    function renderPendingList() { renderList(appState.pendingData, document.getElementById('pendingSearchBox').value, document.getElementById('pendingBuildingList'), appState.selectedPendingBuilding, handlePendingBuildingClick); }
-    function renderCompletedList() { renderList(appState.completedData, document.getElementById('completedSearchBox').value, document.getElementById('completedBuildingList'), appState.selectedCompletedBuilding, handleCompletedBuildingClick); }
+    function renderPendingList() {
+        const searchQuery = document.getElementById('pendingSearchBox').value.toLowerCase();
+        const centralFilter = document.getElementById('centralFilter')?.value || '';
+        const pdFilter = document.getElementById('pdFilter')?.value || '';
+        const sortBy = document.getElementById('sortSelect')?.value || 'direccion';
+        const viewMode = document.getElementById('viewModeToggle')?.dataset.mode || 'list';
+        
+        let filtered = appState.pendingData.filter(p => {
+            const direccion = (p['DIRECCION EDIFICIO'] || '').toLowerCase();
+            const matchSearch = direccion.includes(searchQuery);
+            const matchCentral = !centralFilter || p['CENTRAL'] === centralFilter;
+            const matchPd = !pdFilter || p['PD'] === pdFilter;
+            return matchSearch && matchCentral && matchPd;
+        });
+        
+        filtered.sort((a, b) => {
+            if (sortBy === 'activos') return (parseInt(b['CANTIDAD_ACTIVOS']) || 0) - (parseInt(a['CANTIDAD_ACTIVOS']) || 0);
+            if (sortBy === 'central') return (a['CENTRAL'] || '').localeCompare(b['CENTRAL'] || '');
+            if (sortBy === 'pd') return (a['PD'] || '').localeCompare(b['PD'] || '');
+            return (a['DIRECCION EDIFICIO'] || '').localeCompare(b['DIRECCION EDIFICIO'] || '');
+        });
+        
+        if (viewMode === 'table') {
+            renderTableView(document.getElementById('pendingBuildingList'), filtered, 'pending');
+        } else {
+            renderListView(document.getElementById('pendingBuildingList'), filtered, appState.selectedPendingBuilding, handlePendingBuildingClick, true);
+        }
+    }
+    
+    function renderCompletedList() {
+        const searchQuery = document.getElementById('completedSearchBox').value.toLowerCase();
+        const centralFilter = document.getElementById('centralFilterCompleted')?.value || '';
+        const pdFilter = document.getElementById('pdFilterCompleted')?.value || '';
+        const sortBy = document.getElementById('sortSelectCompleted')?.value || 'direccion';
+        const viewMode = document.getElementById('viewModeToggleCompleted')?.dataset.mode || 'list';
+        
+        let filtered = appState.completedData.filter(c => {
+            const direccion = (c['DIRECCION EDIFICIO'] || '').toLowerCase();
+            const matchSearch = direccion.includes(searchQuery);
+            const matchCentral = !centralFilter || c['CENTRAL'] === centralFilter;
+            const matchPd = !pdFilter || c['PD'] === pdFilter;
+            return matchSearch && matchCentral && matchPd;
+        });
+        
+        filtered.sort((a, b) => {
+            if (sortBy === 'fecha') return (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0);
+            if (sortBy === 'central') return (a['CENTRAL'] || '').localeCompare(b['CENTRAL'] || '');
+            if (sortBy === 'pd') return (a['PD'] || '').localeCompare(b['PD'] || '');
+            return (a['DIRECCION EDIFICIO'] || '').localeCompare(b['DIRECCION EDIFICIO'] || '');
+        });
+        
+        if (viewMode === 'table') {
+            renderTableView(document.getElementById('completedBuildingList'), filtered, 'completed');
+        } else {
+            renderListView(document.getElementById('completedBuildingList'), filtered, appState.selectedCompletedBuilding, handleCompletedBuildingClick, false);
+        }
+    }
 
-    function renderList(data, filter, listElement, selectedItem, clickHandler) {
-        listElement.innerHTML = '';
-        const lowerCaseFilter = filter.toLowerCase();
-        const filteredData = data.filter(edificio => (edificio['DIRECCION EDIFICIO'] || '').toLowerCase().includes(lowerCaseFilter));
-
-        if (filteredData.length === 0) {
-            listElement.innerHTML = '<p class="text-gray-500 text-center p-4">No se encontraron edificios.</p>';
+    function renderListView(listElement, data, selectedItem, clickHandler, isPending) {
+        if (data.length === 0) {
+            listElement.innerHTML = '<p class="text-gray-500 dark:text-gray-400 text-center p-4">No se encontraron edificios.</p>';
             return;
         }
 
-        filteredData.forEach(edificio => {
-            const listItem = document.createElement('div');
+        listElement.innerHTML = data.map(edificio => {
             const isSelected = selectedItem && (selectedItem.id || selectedItem['DIRECCION EDIFICIO']) === (edificio.id || edificio['DIRECCION EDIFICIO']);
-            listItem.className = `p-3 mb-2 rounded-lg cursor-pointer transition-colors duration-200 ${isSelected ? 'item-selected' : 'item-default'}`;
-            listItem.textContent = edificio['DIRECCION EDIFICIO'];
-            listItem.addEventListener('click', () => clickHandler(edificio));
-            listElement.appendChild(listItem);
+            const centralPd = edificio['CENTRAL'] && edificio['PD'] ? `${edificio['CENTRAL']}-${edificio['PD']}` : '';
+            const activos = isPending && edificio['CANTIDAD_ACTIVOS'] !== undefined ? ` • Activos: ${edificio['CANTIDAD_ACTIVOS']}` : '';
+            const causal = !isPending && edificio.causal ? ` • ${edificio.causal}` : '';
+            const address = edificio['DIRECCION EDIFICIO'];
+            const badgeColor = isPending ? 'bg-blue-600' : 'bg-green-600';
+            
+            return `<div class="item ${isSelected ? 'item-selected' : 'item-default'} p-3 mb-2 rounded-lg cursor-pointer transition-colors duration-200" data-address="${address}">
+                <div class="font-semibold">${address}</div>
+                <div class="text-xs mt-1 opacity-75"><span class="badge ${badgeColor} text-white">${centralPd}</span>${activos}${causal}</div>
+            </div>`;
+        }).join('');
+
+        listElement.querySelectorAll('.item').forEach(item => {
+            item.addEventListener('click', () => {
+                const address = item.dataset.address;
+                const edificio = data.find(e => e['DIRECCION EDIFICIO'] === address || e.id === address);
+                if (edificio) clickHandler(edificio);
+            });
         });
     }
 
@@ -16416,23 +16556,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const card = document.getElementById('pendingBuildingInfoCard');
         card.innerHTML = `
             <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <dt class="font-semibold text-gray-600 col-span-full">Dirección:</dt>
-                <dd class="text-gray-800 col-span-full mb-2">${edificio['DIRECCION EDIFICIO'] || 'N/A'}</dd>
-                <dt class="font-semibold text-gray-600">PD:</dt> <dd class="text-gray-800">${edificio['PD_CONCAT'] || 'N/A'}</dd>
-                <dt class="font-semibold text-gray-600">PC:</dt> <dd class="text-gray-800">${edificio['PC'] || 'N/A'}</dd>
-                <dt class="font-semibold text-gray-600">NAP:</dt> <dd class="text-gray-800">${edificio['NAP'] || 'N/A'}</dd>
-                <dt class="font-semibold text-gray-600">CDO:</dt> <dd class="text-gray-800">${edificio['CDO'] || 'N/A'}</dd>
-                <dt class="font-semibold text-gray-600">Tipo Edificio:</dt> <dd class="text-gray-800">${edificio['TIPO EDIFICIO'] || 'N/A'}</dd>
-                <dt class="font-semibold text-gray-600">Tipo Inst:</dt> <dd class="text-gray-800">${edificio['TIPO INST'] || 'N/A'}</dd>
-                <dt class="font-semibold text-gray-600">UF Dedicado:</dt> <dd class="text-gray-800">${edificio['UF DEDICADO'] || 'N/A'}</dd>
-                <dt class="font-semibold text-gray-600">N° FO Asignado:</dt> <dd class="text-gray-800 font-mono">${edificio['N° FO ASIGNADO'] || 'N/A'}</dd>
-                <dt class="font-semibold text-gray-600">Rama:</dt> <dd class="text-gray-800">${edificio['RAMA'] || 'N/A'}</dd>
-                <dt class="font-semibold text-gray-600">Salida:</dt> <dd class="text-gray-800">${edificio['SALIDA'] || 'N/A'}</dd>
-                <dt class="font-semibold text-gray-600">Dirección NAP:</dt> <dd class="text-gray-800">${edificio['DIRECCION NAP'] || 'N/A'}</dd>
-                <dt class="font-semibold text-gray-600">Q CDO:</dt> <dd class="text-gray-800">${edificio['Q CDOS'] || 'N/A'}</dd>
-                <dt class="font-semibold text-gray-600">Q FO:</dt> <dd class="text-gray-800">${edificio['Q FO'] || 'N/A'}</dd>
-                <dt class="font-semibold text-green-700 col-span-full mt-2">Cantidad Activos:</dt>
-                <dd class="text-green-700 font-bold text-lg col-span-full">${edificio['CANTIDAD_ACTIVOS'] || '0'}</dd>
+                <dt class="font-semibold text-gray-700 dark:text-gray-300 col-span-full">Dirección:</dt>
+                <dd class="text-gray-900 dark:text-gray-100 col-span-full mb-2">${edificio['DIRECCION EDIFICIO'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-700 dark:text-gray-300">PD:</dt> <dd class="text-gray-900 dark:text-gray-100">${edificio['PD_CONCAT'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-700 dark:text-gray-300">PC:</dt> <dd class="text-gray-900 dark:text-gray-100">${edificio['PC'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-700 dark:text-gray-300">NAP:</dt> <dd class="text-gray-900 dark:text-gray-100">${edificio['NAP'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-700 dark:text-gray-300">CDO:</dt> <dd class="text-gray-900 dark:text-gray-100">${edificio['CDO'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-700 dark:text-gray-300">Tipo Edificio:</dt> <dd class="text-gray-900 dark:text-gray-100">${edificio['TIPO EDIFICIO'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-700 dark:text-gray-300">Tipo Inst:</dt> <dd class="text-gray-900 dark:text-gray-100">${edificio['TIPO INST'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-700 dark:text-gray-300">UF Dedicado:</dt> <dd class="text-gray-900 dark:text-gray-100">${edificio['UF DEDICADO'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-700 dark:text-gray-300">N° FO Asignado:</dt> <dd class="text-gray-900 dark:text-gray-100 font-mono">${edificio['N° FO ASIGNADO'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-700 dark:text-gray-300">Rama:</dt> <dd class="text-gray-900 dark:text-gray-100">${edificio['RAMA'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-700 dark:text-gray-300">Salida:</dt> <dd class="text-gray-900 dark:text-gray-100">${edificio['SALIDA'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-700 dark:text-gray-300">Dirección NAP:</dt> <dd class="text-gray-900 dark:text-gray-100">${edificio['DIRECCION NAP'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-700 dark:text-gray-300">Q CDO:</dt> <dd class="text-gray-900 dark:text-gray-100">${edificio['Q CDOS'] || 'N/A'}</dd>
+                <dt class="font-semibold text-gray-700 dark:text-gray-300">Q FO:</dt> <dd class="text-gray-900 dark:text-gray-100">${edificio['Q FO'] || 'N/A'}</dd>
+                <dt class="font-semibold text-green-700 dark:text-green-400 col-span-full mt-2">Cantidad Activos:</dt>
+                <dd class="text-green-700 dark:text-green-400 font-bold text-lg col-span-full">${edificio['CANTIDAD_ACTIVOS'] || '0'}</dd>
             </dl>
         `;
         renderPendingActionButton();
@@ -16446,13 +16586,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         card.innerHTML = `
             <div>
-                <h4 class="font-bold text-lg mb-2">${cierre['DIRECCION EDIFICIO']}</h4>
+                <h4 class="font-bold text-lg mb-2 text-gray-900 dark:text-gray-100">${cierre['DIRECCION EDIFICIO']}</h4>
                 <dl class="space-y-3 text-sm">
-                    <div><dt class="font-semibold text-gray-600">Causal:</dt><dd class="text-gray-800 font-medium p-2 bg-blue-100 rounded-md mt-1">${cierre.causal}</dd></div>
-                    <div><dt class="font-semibold text-gray-600">Observaciones:</dt><dd class="text-gray-800 p-2 bg-gray-100 rounded-md mt-1 whitespace-pre-wrap">${cierre.observaciones}</dd></div>
+                    <div><dt class="font-semibold text-gray-700 dark:text-gray-300">Causal:</dt><dd class="text-gray-900 dark:text-gray-100 font-medium p-2 bg-blue-100 dark:bg-blue-900 rounded-md mt-1">${cierre.causal}</dd></div>
+                    <div><dt class="font-semibold text-gray-700 dark:text-gray-300">Observaciones:</dt><dd class="text-gray-900 dark:text-gray-100 p-2 bg-gray-200 dark:bg-gray-800 rounded-md mt-1 whitespace-pre-wrap">${cierre.observaciones}</dd></div>
                     <div>
-                        <dt class="font-semibold text-gray-600">Carpeta de Archivos:</dt>
-                        <dd><a href="${cierre.driveFolderUrl}" target="_blank" class="text-blue-600 hover:underline">Abrir Carpeta en Drive</a></dd>
+                        <dt class="font-semibold text-gray-700 dark:text-gray-300">Carpeta de Archivos:</dt>
+                        <dd><a href="${cierre.driveFolderUrl}" target="_blank" class="text-blue-600 dark:text-blue-400 hover:underline">Abrir Carpeta en Drive</a></dd>
                     </div>
                 </dl>
                 <div class="mt-6 flex space-x-3">
@@ -16515,6 +16655,63 @@ document.addEventListener('DOMContentLoaded', () => {
             completedTab.classList.remove('tab-inactive');
         }
     }
+    
+    function populateFilters() {
+        const centrals = [...new Set(edificiosData.map(e => e['CENTRAL']).filter(Boolean))].sort();
+        const pds = [...new Set(edificiosData.map(e => e['PD']).filter(Boolean))].sort();
+        
+        const centralFilter = document.getElementById('centralFilter');
+        const pdFilter = document.getElementById('pdFilter');
+        const centralFilterCompleted = document.getElementById('centralFilterCompleted');
+        const pdFilterCompleted = document.getElementById('pdFilterCompleted');
+        
+        centrals.forEach(c => {
+            if (centralFilter) centralFilter.innerHTML += `<option value="${c}">${c}</option>`;
+            if (centralFilterCompleted) centralFilterCompleted.innerHTML += `<option value="${c}">${c}</option>`;
+        });
+        
+        pds.forEach(p => {
+            if (pdFilter) pdFilter.innerHTML += `<option value="${p}">${p}</option>`;
+            if (pdFilterCompleted) pdFilterCompleted.innerHTML += `<option value="${p}">${p}</option>`;
+        });
+    }
+
+    function renderTableView(container, data, type) {
+        const isPending = type === 'pending';
+        container.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-xs"><thead class="bg-gray-200 dark:bg-gray-700"><tr><th class="p-2 text-left">Dirección</th><th class="p-2 text-left">Central-PD</th><th class="p-2 text-left">NAP</th>${isPending ? '<th class="p-2 text-right">Activos</th>' : '<th class="p-2 text-left">Causal</th>'}</tr></thead><tbody>` +
+        data.map(item => {
+            const centralPd = `${item['CENTRAL'] || ''}-${item['PD'] || ''}`;
+            const clickAttr = isPending ? `data-address="${item['DIRECCION EDIFICIO']}"` : `data-id="${item.id}"`;
+            return `<tr class="border-b hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" ${clickAttr}><td class="p-2">${item['DIRECCION EDIFICIO']}</td><td class="p-2"><span class="badge ${isPending ? 'bg-blue-600' : 'bg-green-600'} text-white">${centralPd}</span></td><td class="p-2">${item['NAP'] || 'N/A'}</td><td class="p-2 ${isPending ? 'text-right font-bold' : ''}">${isPending ? (item['CANTIDAD_ACTIVOS'] || 0) : (item.causal || '')}</td></tr>`;
+        }).join('') + '</tbody></table></div>';
+        
+        container.querySelectorAll('tr[data-address], tr[data-id]').forEach(row => {
+            row.addEventListener('click', () => {
+                if (isPending) {
+                    const address = row.dataset.address;
+                    const edificio = appState.pendingData.find(p => p['DIRECCION EDIFICIO'] === address);
+                    if (edificio) handlePendingBuildingClick(edificio);
+                } else {
+                    const id = row.dataset.id;
+                    const cierre = appState.completedData.find(c => c.id === id);
+                    if (cierre) handleCompletedBuildingClick(cierre);
+                }
+            });
+        });
+    }
+    
+    function updateStats() {
+        const totalPending = appState.pendingData.length;
+        const totalCompleted = appState.completedData.length;
+        const total = totalPending + totalCompleted;
+        const progress = total > 0 ? (totalCompleted / total * 100).toFixed(1) : 0;
+        
+        document.getElementById('statPending').textContent = totalPending;
+        document.getElementById('statCompleted').textContent = totalCompleted;
+        document.getElementById('statTotal').textContent = total;
+        document.getElementById('statProgress').textContent = `${progress}%`;
+        document.getElementById('progressBar').style.width = `${progress}%`;
+    }
 
     function setupUIListeners() {
         document.getElementById('pendingTab').addEventListener('click', () => switchView('pending'));
@@ -16523,6 +16720,46 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('completedSearchBox').addEventListener('input', () => renderCompletedList());
         document.getElementById('reportForm').addEventListener('submit', handleReportSubmit);
         document.getElementById('offPlanReportForm').addEventListener('submit', handleOffPlanSubmit);
+        
+        ['centralFilter', 'pdFilter', 'sortSelect'].forEach(id => {
+            const elem = document.getElementById(id);
+            if (elem) elem.addEventListener('change', () => renderPendingList());
+        });
+        ['centralFilterCompleted', 'pdFilterCompleted', 'sortSelectCompleted'].forEach(id => {
+            const elem = document.getElementById(id);
+            if (elem) elem.addEventListener('change', () => renderCompletedList());
+        });
+        
+        const viewToggle = document.getElementById('viewModeToggle');
+        if (viewToggle) {
+            viewToggle.addEventListener('click', () => {
+                viewToggle.dataset.mode = viewToggle.dataset.mode === 'list' ? 'table' : 'list';
+                viewToggle.textContent = viewToggle.dataset.mode === 'list' ? '📋 Vista Tabla' : '📝 Vista Lista';
+                renderPendingList();
+            });
+        }
+        
+        const viewToggleCompleted = document.getElementById('viewModeToggleCompleted');
+        if (viewToggleCompleted) {
+            viewToggleCompleted.addEventListener('click', () => {
+                viewToggleCompleted.dataset.mode = viewToggleCompleted.dataset.mode === 'list' ? 'table' : 'list';
+                viewToggleCompleted.textContent = viewToggleCompleted.dataset.mode === 'list' ? '📋 Vista Tabla' : '📝 Vista Lista';
+                renderCompletedList();
+            });
+        }
+        
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        if (darkModeToggle) {
+            darkModeToggle.addEventListener('click', () => {
+                document.body.classList.toggle('dark-mode');
+                localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+                darkModeToggle.textContent = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
+            });
+            if (localStorage.getItem('darkMode') === 'true') {
+                document.body.classList.add('dark-mode');
+                darkModeToggle.textContent = '☀️';
+            }
+        }
     }
 
     function showToast(message, type = 'success') {

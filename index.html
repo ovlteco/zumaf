@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
 body {
     font-family: 'Inter', sans-serif;
@@ -115,7 +116,13 @@ body.dark-mode {
             <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6 flex flex-col">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-semibold dark:text-gray-100">Edificios Pendientes</h2>
-                    <button id="viewModeToggle" data-mode="list" class="text-xs bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700">📋 Vista Tabla</button>
+                    <div class="flex gap-2">
+                        <button id="exportPendingBtn" class="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            Exportar Excel
+                        </button>
+                        <button id="viewModeToggle" data-mode="list" class="text-xs bg-gray-600 text-white px-3 py-1 rounded hover:bg-gray-700">📋 Vista Tabla</button>
+                    </div>
                 </div>
                 <div class="relative mb-3">
                     <input type="text" id="pendingSearchBox" placeholder="Buscar por calle o altura..." class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg pl-10">
@@ -156,6 +163,7 @@ body.dark-mode {
 
     <div id="reportModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden"><div id="reportModalBackdrop" class="absolute inset-0 bg-black bg-opacity-50 opacity-0 modal-backdrop"></div><div class="modal-panel bg-white rounded-lg shadow-2xl w-full max-w-lg mx-auto transform opacity-0 scale-95 flex flex-col max-h-[90vh]"><div class="flex justify-between items-center p-4 border-b flex-shrink-0"><div><h3 class="text-lg font-semibold">Informar Cierre</h3><p id="reportModalTitle" class="text-sm text-gray-600"></p></div><button id="closeReportModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button></div><form id="reportForm" class="p-4 space-y-4 overflow-y-auto custom-scrollbar flex-grow"><div><label for="reportCloseReason" class="block text-sm font-medium text-gray-700">Causal (obligatorio)</label><select id="reportCloseReason" name="reportCloseReason" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"><option value="">Seleccione...</option><option>CONSTRUIDO</option><option>CANCELADO</option></select></div><div><label for="reportObservations" class="block text-sm font-medium text-gray-700">Observaciones (obligatorio)</label><textarea id="reportObservations" name="reportObservations" rows="3" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></textarea></div><div><label class="block text-sm font-medium text-gray-700 mb-2">Fotos (máx. 15)</label><div class="flex space-x-2"><label for="reportCameraInput" class="flex-1 text-center px-4 py-2 bg-gray-600 text-white rounded-md cursor-pointer hover:bg-gray-700 text-xs">CÁMARA</label><input type="file" id="reportCameraInput" accept="image/*" capture="environment" class="hidden"><label for="reportGalleryInput" class="flex-1 text-center px-4 py-2 bg-gray-600 text-white rounded-md cursor-pointer hover:bg-gray-700 text-xs">GALERÍA</label><input type="file" id="reportGalleryInput" accept="image/*" multiple class="hidden"></div></div><div id="reportPhotoPreview" class="grid grid-cols-3 sm:grid-cols-5 gap-2 bg-gray-100 p-2 rounded-md min-h-[80px]"></div></form><div class="px-4 py-3 bg-gray-50 text-right flex-shrink-0"><button type="submit" form="reportForm" id="submitReportBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">COMPLETAR CIERRE</button></div></div></div>
     <div id="offPlanModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden"><div id="offPlanModalBackdrop" class="absolute inset-0 bg-black bg-opacity-50 opacity-0 modal-backdrop"></div><div class="modal-panel bg-white rounded-lg shadow-2xl w-full max-w-lg mx-auto transform opacity-0 scale-95 flex flex-col max-h-[90vh]"><div class="flex justify-between items-center p-4 border-b flex-shrink-0"><h3 class="text-lg font-semibold">Cierre Fuera del Plan</h3><button id="closeOffPlanModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button></div><form id="offPlanReportForm" class="p-4 space-y-4 overflow-y-auto custom-scrollbar flex-grow"><div><label for="offPlanAddress" class="block text-sm font-medium text-gray-700">Dirección (obligatorio)</label><input type="text" id="offPlanAddress" name="offPlanAddress" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></div><div><label for="offPlanNap" class="block text-sm font-medium text-gray-700">NAP (obligatorio)</label><input type="text" id="offPlanNap" name="offPlanNap" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></div><div><label for="offPlanCdo" class="block text-sm font-medium text-gray-700">CDO (opcional)</label><input type="text" id="offPlanCdo" name="offPlanCdo" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></div><hr><div><label for="offPlanCloseReason" class="block text-sm font-medium text-gray-700">Causal (obligatorio)</label><select id="offPlanCloseReason" name="offPlanCloseReason" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"><option value="">Seleccione...</option><option>CONSTRUIDO</option><option>CANCELADO</option></select></div><div><label for="offPlanObservations" class="block text-sm font-medium text-gray-700">Observaciones (obligatorio)</label><textarea id="offPlanObservations" name="offPlanObservations" rows="3" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></textarea></div><div><label class="block text-sm font-medium text-gray-700 mb-2">Fotos (máx. 15)</label><div class="flex space-x-2"><label for="offPlanCameraInput" class="flex-1 text-center px-4 py-2 bg-gray-600 text-white rounded-md cursor-pointer hover:bg-gray-700 text-xs">CÁMARA</label><input type="file" id="offPlanCameraInput" accept="image/*" capture="environment" class="hidden"><label for="offPlanGalleryInput" class="flex-1 text-center px-4 py-2 bg-gray-600 text-white rounded-md cursor-pointer hover:bg-gray-700 text-xs">GALERÍA</label><input type="file" id="offPlanGalleryInput" accept="image/*" multiple class="hidden"></div></div><div id="offPlanPhotoPreview" class="grid grid-cols-3 sm:grid-cols-5 gap-2 bg-gray-100 p-2 rounded-md min-h-[80px]"></div></form><div class="px-4 py-3 bg-gray-50 text-right flex-shrink-0"><button type="submit" form="offPlanReportForm" id="submitOffPlanBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">COMPLETAR CIERRE</button></div></div></div>
+    <div id="medicionModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden"><div id="medicionModalBackdrop" class="absolute inset-0 bg-black bg-opacity-50 opacity-0 modal-backdrop"></div><div class="modal-panel bg-white rounded-lg shadow-2xl w-full max-w-lg mx-auto transform opacity-0 scale-95 flex flex-col max-h-[90vh]"><div class="flex justify-between items-center p-4 border-b flex-shrink-0"><div><h3 class="text-lg font-semibold">Adjuntar Medición</h3><p id="medicionModalTitle" class="text-sm text-gray-600"></p></div><button id="closeMedicionModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button></div><form id="medicionForm" class="p-4 space-y-4 overflow-y-auto custom-scrollbar flex-grow"><div><label class="block text-sm font-medium text-gray-700 mb-2">Fotos de Medición (máx. 30)</label><div class="flex space-x-2"><label for="medicionCameraInput" class="flex-1 text-center px-4 py-2 bg-purple-600 text-white rounded-md cursor-pointer hover:bg-purple-700 text-xs">📷 CÁMARA</label><input type="file" id="medicionCameraInput" accept="image/*" capture="environment" class="hidden"><label for="medicionGalleryInput" class="flex-1 text-center px-4 py-2 bg-purple-600 text-white rounded-md cursor-pointer hover:bg-purple-700 text-xs">🖼️ GALERÍA</label><input type="file" id="medicionGalleryInput" accept="image/*" multiple class="hidden"></div></div><div id="medicionPhotoPreview" class="grid grid-cols-3 sm:grid-cols-5 gap-2 bg-gray-100 p-2 rounded-md min-h-[80px]"></div><div class="text-sm text-gray-600 text-center"><span id="medicionPhotoCount">0</span> / 30 fotos</div></form><div class="px-4 py-3 bg-gray-50 text-right flex-shrink-0"><button type="submit" form="medicionForm" id="submitMedicionBtn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-md">ADJUNTAR MEDICIÓN</button></div></div></div>
     
     <script>const GOOGLE_APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx004763u8F8bfKL5GxLFkE9UEs74hh9b5V6pOO_NHD-533LMY8FMtW-ItcdrLx-JSCxw/exec";</script>
     <script>
@@ -13654,10 +13662,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let appState = {
         db: null,
         closuresCollection: null,
+        medicionesCollection: null,
         providerName: "No definido",
         collectionName: "default_collection",
         pendingData: [...(typeof edificiosData !== 'undefined' ? edificiosData : [])],
         completedData: [],
+        medicionesData: {},
         selectedPendingBuilding: null,
         selectedCompletedBuilding: null,
         modalFunctions: {}
@@ -13680,8 +13690,10 @@ document.addEventListener('DOMContentLoaded', () => {
             appState.providerName = edificiosData.length > 0 ? edificiosData[0].PROVEEDOR : "No definido";
             appState.collectionName = appState.providerName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
             appState.closuresCollection = appState.db.collection(appState.collectionName);
+            appState.medicionesCollection = appState.db.collection(`${appState.collectionName}_mediciones`);
             console.log("Firebase inicializado.");
             setupFirestoreListener();
+            setupMedicionesListener();
         } catch (e) {
             console.error("Error inicializando Firebase:", e);
             showToast("Error crítico al conectar con Firebase.", "error");
@@ -13718,6 +13730,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }, error => {
             console.error("Error al obtener datos de Firebase: ", error);
             showToast("Error de conexión con la base de datos.", "error");
+        });
+    }
+
+    function setupMedicionesListener() {
+        appState.medicionesCollection.onSnapshot(snapshot => {
+            console.log("Datos de mediciones recibidos.");
+            appState.medicionesData = {};
+            snapshot.docs.forEach(doc => {
+                appState.medicionesData[doc.id] = doc.data();
+            });
+            renderCompletedList();
+        }, error => {
+            console.error("Error al obtener mediciones: ", error);
         });
     }
 
@@ -13894,6 +13919,85 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function handleMedicionSubmit(event) {
+        event.preventDefault();
+        const form = document.getElementById('medicionForm');
+        const submitButton = document.getElementById('submitMedicionBtn');
+        const isEditing = form.dataset.isEditing === 'true';
+        const cierreId = form.dataset.cierreId;
+        
+        const cierre = appState.completedData.find(c => c.id === cierreId);
+        if (!cierre) {
+            showToast("Error: No se encontró el cierre.", "error");
+            return;
+        }
+
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<div class="loader mx-auto"></div>';
+
+        const photosBase64 = await convertFilesToBase64(appState.modalFunctions.getMedicionFiles());
+        
+        if (photosBase64.length === 0) {
+            showToast("Debe adjuntar al menos una foto.", "error");
+            submitButton.disabled = false;
+            submitButton.textContent = isEditing ? 'GUARDAR CAMBIOS' : 'ADJUNTAR MEDICIÓN';
+            return;
+        }
+
+        const dataToSend = {
+            DIRECCION_EDIFICIO: cierre['DIRECCION EDIFICIO'],
+            NAP: cierre['NAP'] || cierre.NAP,
+            PC: cierre['PC'] || cierre.PC,
+            CDO: cierre['CDO'] || cierre.CDO,
+            PROVEEDOR: cierre['PROVEEDOR'] || cierre.PROVEEDOR,
+            medicionPhotosBase64: photosBase64,
+            action: 'medicion',
+            isEditingMedicion: isEditing
+        };
+
+        try {
+            const response = await fetch(GOOGLE_APP_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'cors',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(dataToSend)
+            });
+            const result = await response.json();
+
+            if (result.status !== 'success') {
+                throw new Error(result.message || 'Error desconocido en Google Apps Script.');
+            }
+
+            // Guardar en colección separada de mediciones
+            const medicionData = {
+                edificioId: cierreId,
+                direccion: cierre['DIRECCION EDIFICIO'],
+                proveedor: appState.providerName,
+                driveFolderUrl: result.folderUrl,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                estado: 'completada'
+            };
+
+            const medicionesCollection = appState.db.collection(`${appState.collectionName}_mediciones`);
+            
+            if (isEditing) {
+                await medicionesCollection.doc(cierreId).update(medicionData);
+            } else {
+                await medicionesCollection.doc(cierreId).set(medicionData);
+            }
+
+            showToast(isEditing ? "¡Medición actualizada con éxito!" : "¡Medición adjuntada con éxito!");
+            appState.modalFunctions.closeModal(document.getElementById('medicionModal'), document.getElementById('medicionModalBackdrop'));
+
+        } catch (error) {
+            console.error("Error al procesar medición: ", error);
+            showToast("Error al procesar la medición: " + error.message, "error");
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = isEditing ? 'GUARDAR CAMBIOS' : 'ADJUNTAR MEDICIÓN';
+        }
+    }
+
     async function deleteOrRevertClosure(cierre, isDelete) {
         const password = prompt("Ingrese la contraseña para continuar:");
         if (password !== "0658") {
@@ -14053,6 +14157,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const revertButtonHtml = cierre.isOffPlan 
             ? `<button class="delete-closure-btn flex-1 bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-md">ELIMINAR</button>`
             : `<button class="revert-closure-btn flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md">REVERTIR A PENDIENTE</button>`;
+        
+        const medicion = appState.medicionesData[cierre.id];
+        const medicionFolderHtml = medicion 
+            ? `<div><dt class="font-semibold text-gray-700 dark:text-gray-300">Carpeta de Medición:</dt><dd><a href="${medicion.driveFolderUrl}" target="_blank" class="text-purple-600 dark:text-purple-400 hover:underline">📐 Abrir Medición en Drive</a></dd></div>` 
+            : '';
 
         card.innerHTML = `
             <div>
@@ -14064,14 +14173,25 @@ document.addEventListener('DOMContentLoaded', () => {
                         <dt class="font-semibold text-gray-700 dark:text-gray-300">Carpeta de Archivos:</dt>
                         <dd><a href="${cierre.driveFolderUrl}" target="_blank" class="text-blue-600 dark:text-blue-400 hover:underline">Abrir Carpeta en Drive</a></dd>
                     </div>
+                    ${medicionFolderHtml}
                 </dl>
-                <div class="mt-6 flex space-x-3">
-                    <button class="edit-closure-btn flex-1 bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-md">EDITAR</button>
+                <div class="mt-6 grid grid-cols-2 gap-2">
+                    <button class="edit-closure-btn bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-3 rounded-md text-sm">EDITAR</button>
+                    ${medicion 
+                        ? `<button class="edit-medicion-btn bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-3 rounded-md text-sm">EDITAR MEDICIÓN</button>` 
+                        : `<button class="add-medicion-btn bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-3 rounded-md text-sm">ADJUNTAR MEDICIÓN</button>`}
+                </div>
+                <div class="mt-2">
                     ${revertButtonHtml}
                 </div>
             </div>
         `;
         card.querySelector('.edit-closure-btn').addEventListener('click', () => appState.modalFunctions.openEditModal(cierre));
+        
+        const addMedicionBtn = card.querySelector('.add-medicion-btn');
+        const editMedicionBtn = card.querySelector('.edit-medicion-btn');
+        if(addMedicionBtn) addMedicionBtn.addEventListener('click', () => appState.modalFunctions.openMedicionModal(cierre, false));
+        if(editMedicionBtn) editMedicionBtn.addEventListener('click', () => appState.modalFunctions.openMedicionModal(cierre, true));
         
         const revertBtn = card.querySelector('.revert-closure-btn');
         const deleteBtn = card.querySelector('.delete-closure-btn');
@@ -14148,11 +14268,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderTableView(container, data, type) {
         const isPending = type === 'pending';
-        container.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-xs"><thead class="bg-gray-200 dark:bg-gray-700"><tr><th class="p-2 text-left">Dirección</th><th class="p-2 text-left">Central-PD</th><th class="p-2 text-left">NAP</th>${isPending ? '<th class="p-2 text-right">Activos</th>' : '<th class="p-2 text-left">Causal</th>'}</tr></thead><tbody>` +
+        container.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-xs"><thead class="bg-gray-200 dark:bg-gray-700"><tr><th class="p-2 text-left dark:text-white">Dirección</th><th class="p-2 text-left dark:text-white">Central-PD</th><th class="p-2 text-left dark:text-white">NAP</th>${isPending ? '<th class="p-2 text-right dark:text-white">Activos</th>' : '<th class="p-2 text-left dark:text-white">Causal</th>'}</tr></thead><tbody>` +
         data.map(item => {
             const centralPd = `${item['CENTRAL'] || ''}-${item['PD'] || ''}`;
             const clickAttr = isPending ? `data-address="${item['DIRECCION EDIFICIO']}"` : `data-id="${item.id}"`;
-            return `<tr class="border-b hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" ${clickAttr}><td class="p-2">${item['DIRECCION EDIFICIO']}</td><td class="p-2"><span class="badge ${isPending ? 'bg-blue-600' : 'bg-green-600'} text-white">${centralPd}</span></td><td class="p-2">${item['NAP'] || 'N/A'}</td><td class="p-2 ${isPending ? 'text-right font-bold' : ''}">${isPending ? (item['CANTIDAD_ACTIVOS'] || 0) : (item.causal || '')}</td></tr>`;
+            return `<tr class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer" ${clickAttr}><td class="p-2 dark:text-gray-200">${item['DIRECCION EDIFICIO']}</td><td class="p-2"><span class="badge ${isPending ? 'bg-blue-600' : 'bg-green-600'} text-white">${centralPd}</span></td><td class="p-2 dark:text-gray-200">${item['NAP'] || 'N/A'}</td><td class="p-2 dark:text-gray-200 ${isPending ? 'text-right font-bold' : ''}">${isPending ? (item['CANTIDAD_ACTIVOS'] || 0) : (item.causal || '')}</td></tr>`;
         }).join('') + '</tbody></table></div>';
         
         container.querySelectorAll('tr[data-address], tr[data-id]').forEach(row => {
@@ -14190,6 +14310,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('completedSearchBox').addEventListener('input', () => renderCompletedList());
         document.getElementById('reportForm').addEventListener('submit', handleReportSubmit);
         document.getElementById('offPlanReportForm').addEventListener('submit', handleOffPlanSubmit);
+        document.getElementById('medicionForm').addEventListener('submit', handleMedicionSubmit);
         
         ['centralFilter', 'pdFilter', 'sortSelect'].forEach(id => {
             const elem = document.getElementById(id);
@@ -14206,6 +14327,58 @@ document.addEventListener('DOMContentLoaded', () => {
                 viewToggle.dataset.mode = viewToggle.dataset.mode === 'list' ? 'table' : 'list';
                 viewToggle.textContent = viewToggle.dataset.mode === 'list' ? '📋 Vista Tabla' : '📝 Vista Lista';
                 renderPendingList();
+            });
+        }
+        
+        // Botón de exportación a Excel
+        const exportPendingBtn = document.getElementById('exportPendingBtn');
+        if (exportPendingBtn) {
+            exportPendingBtn.addEventListener('click', () => {
+                const pendingData = appState.pendingData || [];
+                
+                if (pendingData.length === 0) {
+                    showToast('No hay edificios pendientes para exportar', 'error');
+                    return;
+                }
+                
+                // Preparar datos para Excel con toda la información
+                const excelData = pendingData.map(item => {
+                    return {
+                        'DIRECCIÓN': item['DIRECCION EDIFICIO'] || item['DIRECCION_EDIFICIO'] || '',
+                        'CENTRAL': item['CENTRAL'] || '',
+                        'PD': item['PD'] || '',
+                        'NAP': item['NAP'] || '',
+                        'CDO': item['CDO'] || '',
+                        'ACTIVOS TOTALES': item['CANTIDAD_ACTIVOS'] || item['ACTIVOS'] || 0,
+                        'OBSERVACIONES': item['OBSERVACIONES'] || ''
+                    };
+                });
+                
+                // Crear workbook y worksheet
+                const ws = XLSX.utils.json_to_sheet(excelData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Edificios Pendientes');
+                
+                // Ajustar anchos de columnas
+                const colWidths = [
+                    { wch: 40 }, // DIRECCIÓN
+                    { wch: 15 }, // CENTRAL
+                    { wch: 10 }, // PD
+                    { wch: 15 }, // NAP
+                    { wch: 15 }, // CDO
+                    { wch: 15 }, // ACTIVOS
+                    { wch: 50 }  // OBSERVACIONES
+                ];
+                ws['!cols'] = colWidths;
+                
+                // Generar nombre de archivo con fecha y proveedor
+                const today = new Date().toISOString().split('T')[0];
+                const providerName = appState.providerName.replace(/\s+/g, '_');
+                const filename = 'Pendientes_' + providerName + '_' + today + '.xlsx';
+                
+                // Descargar archivo
+                XLSX.writeFile(wb, filename);
+                showToast('Excel exportado: ' + pendingData.length + ' edificios', 'success');
             });
         }
         
@@ -14343,6 +14516,42 @@ function setupAllModals() {
         }
     });
 
+    const medicionModal = document.getElementById('medicionModal');
+    const medicionModalBackdrop = document.getElementById('medicionModalBackdrop');
+    const medicionModalTitle = document.getElementById('medicionModalTitle');
+    const closeMedicionModalButton = document.getElementById('closeMedicionModalBtn');
+    const medicionForm = document.getElementById('medicionForm');
+    const submitMedicionBtn = document.getElementById('submitMedicionBtn');
+    const medicionPhotoPreview = document.getElementById('medicionPhotoPreview');
+    const medicionCameraInput = document.getElementById('medicionCameraInput');
+    const medicionGalleryInput = document.getElementById('medicionGalleryInput');
+    const medicionPhotoCount = document.getElementById('medicionPhotoCount');
+    let medicionUploadedFiles = [];
+
+    function updateMedicionCount() {
+        if (medicionPhotoCount) medicionPhotoCount.textContent = medicionUploadedFiles.length;
+    }
+
+    function handleMedicionFiles(files) {
+        const newFiles = [...files].slice(0, 30 - medicionUploadedFiles.length);
+        medicionUploadedFiles.push(...newFiles);
+        if (medicionUploadedFiles.length > 30) medicionUploadedFiles.splice(0, medicionUploadedFiles.length - 30);
+        renderPhotoPreview(medicionPhotoPreview, medicionUploadedFiles);
+        updateMedicionCount();
+    }
+
+    if (closeMedicionModalButton) closeMedicionModalButton.addEventListener('click', () => closeModal(medicionModal, medicionModalBackdrop));
+    if (medicionModalBackdrop) medicionModalBackdrop.addEventListener('click', () => closeModal(medicionModal, medicionModalBackdrop));
+    if (medicionCameraInput) medicionCameraInput.addEventListener('change', (e) => handleMedicionFiles(e.target.files));
+    if (medicionGalleryInput) medicionGalleryInput.addEventListener('change', (e) => handleMedicionFiles(e.target.files));
+    if (medicionPhotoPreview) medicionPhotoPreview.addEventListener('click', (e) => {
+        if (e.target.classList.contains('remove-photo-btn')) {
+            medicionUploadedFiles.splice(parseInt(e.target.dataset.index, 10), 1);
+            renderPhotoPreview(medicionPhotoPreview, medicionUploadedFiles);
+            updateMedicionCount();
+        }
+    });
+
     return {
         openReportModal: (building) => {
             if (!reportModal || !reportModalTitle) return;
@@ -14382,7 +14591,20 @@ function setupAllModals() {
         },
         closeModal,
         getReportFiles: () => reportUploadedFiles,
-        getOffPlanFiles: () => offPlanUploadedFiles
+        getOffPlanFiles: () => offPlanUploadedFiles,
+        openMedicionModal: (cierre, isEditing) => {
+            if (!medicionModal || !cierre) return;
+            medicionModalTitle.textContent = cierre['DIRECCION EDIFICIO'];
+            medicionForm.reset();
+            medicionForm.dataset.cierreId = cierre.id;
+            medicionForm.dataset.isEditing = isEditing ? 'true' : 'false';
+            submitMedicionBtn.textContent = isEditing ? 'GUARDAR CAMBIOS' : 'ADJUNTAR MEDICIÓN';
+            medicionUploadedFiles = [];
+            renderPhotoPreview(medicionPhotoPreview, medicionUploadedFiles);
+            updateMedicionCount();
+            openModal(medicionModal, medicionModalBackdrop);
+        },
+        getMedicionFiles: () => medicionUploadedFiles
     };
 }
 </script>

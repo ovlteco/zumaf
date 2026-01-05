@@ -65,9 +65,118 @@ body.dark-mode {
 .toast-success { background-color: #28a745; }
 .toast-error { background-color: #dc3545; }
 #toast.show { top: 20px; }
+/* --- ESTILOS PARA MODAL DE LOGIN --- */
+.auth-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+.auth-modal {
+    background: white;
+    border-radius: 12px;
+    padding: 40px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+.auth-modal h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 10px;
+    text-align: center;
+}
+.auth-modal p {
+    color: #6b7280;
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 14px;
+}
+.auth-modal input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    margin-bottom: 16px;
+    box-sizing: border-box;
+    transition: border-color 0.3s;
+}
+.auth-modal input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+.auth-modal button {
+    width: 100%;
+    padding: 12px 16px;
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+.auth-modal button:hover:not(:disabled) {
+    background-color: #2563eb;
+}
+.auth-modal button:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
+}
+.auth-modal .error-message {
+    color: #dc3545;
+    font-size: 13px;
+    margin-bottom: 16px;
+    text-align: center;
+    display: none;
+}
+.auth-modal .error-message.show {
+    display: block;
+}
+.content-hidden {
+    filter: blur(1px);
+    pointer-events: none;
+    opacity: 0.5;
+}
 </style>
 </head>
 <body>
+    <!-- ✅ MODAL DE AUTENTICACIÓN -->
+    <div id="authBackdrop" class="auth-backdrop" style="display: none;">
+        <div id="authModal" class="auth-modal" style="display: none;">
+            <h2>🔒 Acceso Restringido</h2>
+            <p>Ingrese sus credenciales para continuar</p>
+            <form id="authForm" onsubmit="handleAuthSubmit(event)">
+                <div class="error-message" id="authErrorMessage"></div>
+                <input 
+                    type="text" 
+                    id="authUsername" 
+                    placeholder="Usuario" 
+                    autocomplete="username"
+                    required
+                >
+                <input 
+                    type="password" 
+                    id="authPassword" 
+                    placeholder="Contraseña" 
+                    autocomplete="current-password"
+                    required
+                >
+                <button type="submit" id="authSubmitBtn">ACCEDER</button>
+            </form>
+        </div>
+    </div>
+
     <div id="toast"></div>
     <div class="container mx-auto p-4">
         <header class="bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-4">
@@ -19166,6 +19275,77 @@ const firebaseConfig = {
     }
 ];</script>
     <script>
+// ✅ SHA256 HASH FUNCTION (LIGHTWEIGHT)
+function sha256(str) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(str);
+    return crypto.subtle.digest('SHA-256', data).then(hashBuffer => {
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => ('0' + b.toString(16)).slice(-2)).join('');
+    });
+}
+
+// ✅ AUTENTICACIÓN GLOBAL
+const AUTH_CONFIG = {
+    username: "ovlteco2026",
+    passwordHash: "e1f8f52d714fb71efb3c37597d07d1f2ffb5fd8db33b98f8411e0f2d276a40b7"
+};
+
+function checkAuthStatus() {
+    const authStatus = sessionStorage.getItem('app_authenticated');
+    return authStatus === 'true';
+}
+
+async function handleAuthSubmit(event) {
+    event.preventDefault();
+    const username = document.getElementById('authUsername').value.trim();
+    const password = document.getElementById('authPassword').value;
+    const errorMsg = document.getElementById('authErrorMessage');
+    const submitBtn = document.getElementById('authSubmitBtn');
+    
+    if (!username || !password) {
+        errorMsg.textContent = 'El usuario y contraseña son obligatorios.';
+        errorMsg.classList.add('show');
+        return;
+    }
+    
+    if (username !== AUTH_CONFIG.username) {
+        errorMsg.textContent = 'Usuario o contraseña incorrectos.';
+        errorMsg.classList.add('show');
+        return;
+    }
+    
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<div class="loader mx-auto" style="width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>';
+    
+    try {
+        const inputHash = await sha256(password);
+        if (inputHash === AUTH_CONFIG.passwordHash) {
+            sessionStorage.setItem('app_authenticated', 'true');
+            document.getElementById('authBackdrop').style.display = 'none';
+            document.getElementById('authModal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+            location.reload();
+        } else {
+            errorMsg.textContent = 'Usuario o contraseña incorrectos.';
+            errorMsg.classList.add('show');
+        }
+    } catch (err) {
+        errorMsg.textContent = 'Error en la validación. Intenta de nuevo.';
+        errorMsg.classList.add('show');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'ACCEDER';
+    }
+}
+
+function showAuthModal() {
+    document.body.style.overflow = 'hidden';
+    document.getElementById('authBackdrop').style.display = 'flex';
+    document.getElementById('authModal').style.display = 'block';
+    document.getElementById('authUsername').focus();
+}
+
 // ✅ NUEVA FUNCIÓN AUXILIAR PARA CONVERTIR ARCHIVOS A BASE64
 function convertFilesToBase64(files) {
     const promises = files.map(file => {
@@ -19180,6 +19360,12 @@ function convertFilesToBase64(files) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // ✅ CHECK DE AUTENTICACIÓN AL CARGAR
+    if (!checkAuthStatus()) {
+        showAuthModal();
+        return;
+    }
+
     // --- ESTADO GLOBAL DE LA APP ---
     let appState = {
         db: null,

@@ -187,9 +187,6 @@ body.dark-mode {
                 </div>
                 <div class="flex gap-2 mt-4 sm:mt-0">
                     <button id="darkModeToggle" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-lg">🌙</button>
-                    <button id="offPlanButton" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
-                        INFORMAR CIERRE FUERA DEL PLAN
-                    </button>
                 </div>
             </div>
             <div class="grid grid-cols-3 gap-4 mt-4">
@@ -219,6 +216,22 @@ body.dark-mode {
                 <button id="pendingTab" class="py-3 px-1 border-b-2 text-sm font-medium tab">Pendientes</button>
                 <button id="completedTab" class="py-3 px-1 border-b-2 text-sm font-medium tab">Realizados</button>
             </nav>
+        </div>
+
+        <!-- AVISO DE DIRECCIONES FUERA DE PLAN -->
+        <div class="mb-4 bg-yellow-50 dark:bg-yellow-900 border-l-4 border-yellow-400 dark:border-yellow-600 p-4 rounded">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-yellow-700 dark:text-yellow-100">
+                        <strong>⚠️ Direcciones no listadas:</strong> Si necesita informar sobre direcciones que <strong>no figuran en ADDRO</strong>, escriba a <a href="mailto:mgrivero@personal.com.ar" class="underline font-semibold hover:text-yellow-900">mgrivero@personal.com.ar</a> con los detalles de la dirección, NAP y CDO.
+                    </p>
+                </div>
+            </div>
         </div>
 
         <main id="pendingView" class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -268,10 +281,25 @@ body.dark-mode {
             </div>
             <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6"><h2 class="text-xl font-semibold mb-4 dark:text-gray-100">Detalles del Cierre</h2><div id="completedBuildingInfoCard" class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg min-h-[200px] flex items-center justify-center"><p class="text-gray-500 dark:text-gray-400 text-center">Seleccione un cierre de la lista.</p></div></div>
         </main>
+
+        <!-- AVISO DE DIRECCIONES FUERA DE PLAN -->
+        <div class="mt-6 bg-yellow-50 dark:bg-yellow-900 border-l-4 border-yellow-400 dark:border-yellow-600 p-4 rounded">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-yellow-700 dark:text-yellow-100">
+                        <strong>⚠️ Direcciones no listadas:</strong> Si necesita informar sobre direcciones que <strong>no figuran en ADDRO</strong>, escriba a <a href="mailto:mgrivero@personal.com.ar" class="underline font-semibold hover:text-yellow-900">mgrivero@personal.com.ar</a> con los detalles de la dirección, NAP y CDO.
+                    </p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="reportModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden"><div id="reportModalBackdrop" class="absolute inset-0 bg-black bg-opacity-50 opacity-0 modal-backdrop"></div><div class="modal-panel bg-white rounded-lg shadow-2xl w-full max-w-lg mx-auto transform opacity-0 scale-95 flex flex-col max-h-[90vh]"><div class="flex justify-between items-center p-4 border-b flex-shrink-0"><div><h3 class="text-lg font-semibold">Informar Cierre</h3><p id="reportModalTitle" class="text-sm text-gray-600"></p></div><button id="closeReportModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button></div><form id="reportForm" class="p-4 space-y-4 overflow-y-auto custom-scrollbar flex-grow"><div><label for="reportCloseReason" class="block text-sm font-medium text-gray-700">Causal (obligatorio)</label><select id="reportCloseReason" name="reportCloseReason" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"><option value="">Seleccione...</option><option>CONSTRUIDO</option><option>CANCELADO</option></select></div><div><label for="reportObservations" class="block text-sm font-medium text-gray-700">Observaciones (obligatorio)</label><textarea id="reportObservations" name="reportObservations" rows="3" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></textarea></div><div><label class="block text-sm font-medium text-gray-700 mb-2">Fotos (máx. 15)</label><div class="flex space-x-2"><label for="reportCameraInput" class="flex-1 text-center px-4 py-2 bg-gray-600 text-white rounded-md cursor-pointer hover:bg-gray-700 text-xs">CÁMARA</label><input type="file" id="reportCameraInput" accept="image/*" capture="environment" class="hidden"><label for="reportGalleryInput" class="flex-1 text-center px-4 py-2 bg-gray-600 text-white rounded-md cursor-pointer hover:bg-gray-700 text-xs">GALERÍA</label><input type="file" id="reportGalleryInput" accept="image/*" multiple class="hidden"></div></div><div id="reportPhotoPreview" class="grid grid-cols-3 sm:grid-cols-5 gap-2 bg-gray-100 p-2 rounded-md min-h-[80px]"></div></form><div class="px-4 py-3 bg-gray-50 text-right flex-shrink-0"><button type="submit" form="reportForm" id="submitReportBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">COMPLETAR CIERRE</button></div></div></div>
-    <div id="offPlanModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden"><div id="offPlanModalBackdrop" class="absolute inset-0 bg-black bg-opacity-50 opacity-0 modal-backdrop"></div><div class="modal-panel bg-white rounded-lg shadow-2xl w-full max-w-lg mx-auto transform opacity-0 scale-95 flex flex-col max-h-[90vh]"><div class="flex justify-between items-center p-4 border-b flex-shrink-0"><h3 class="text-lg font-semibold">Cierre Fuera del Plan</h3><button id="closeOffPlanModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button></div><form id="offPlanReportForm" class="p-4 space-y-4 overflow-y-auto custom-scrollbar flex-grow"><div><label for="offPlanAddress" class="block text-sm font-medium text-gray-700">Dirección (obligatorio)</label><input type="text" id="offPlanAddress" name="offPlanAddress" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></div><div><label for="offPlanNap" class="block text-sm font-medium text-gray-700">NAP (obligatorio)</label><input type="text" id="offPlanNap" name="offPlanNap" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></div><div><label for="offPlanCdo" class="block text-sm font-medium text-gray-700">CDO (opcional)</label><input type="text" id="offPlanCdo" name="offPlanCdo" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></div><hr><div><label for="offPlanCloseReason" class="block text-sm font-medium text-gray-700">Causal (obligatorio)</label><select id="offPlanCloseReason" name="offPlanCloseReason" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"><option value="">Seleccione...</option><option>CONSTRUIDO</option><option>CANCELADO</option></select></div><div><label for="offPlanObservations" class="block text-sm font-medium text-gray-700">Observaciones (obligatorio)</label><textarea id="offPlanObservations" name="offPlanObservations" rows="3" required class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"></textarea></div><div><label class="block text-sm font-medium text-gray-700 mb-2">Fotos (máx. 15)</label><div class="flex space-x-2"><label for="offPlanCameraInput" class="flex-1 text-center px-4 py-2 bg-gray-600 text-white rounded-md cursor-pointer hover:bg-gray-700 text-xs">CÁMARA</label><input type="file" id="offPlanCameraInput" accept="image/*" capture="environment" class="hidden"><label for="offPlanGalleryInput" class="flex-1 text-center px-4 py-2 bg-gray-600 text-white rounded-md cursor-pointer hover:bg-gray-700 text-xs">GALERÍA</label><input type="file" id="offPlanGalleryInput" accept="image/*" multiple class="hidden"></div></div><div id="offPlanPhotoPreview" class="grid grid-cols-3 sm:grid-cols-5 gap-2 bg-gray-100 p-2 rounded-md min-h-[80px]"></div></form><div class="px-4 py-3 bg-gray-50 text-right flex-shrink-0"><button type="submit" form="offPlanReportForm" id="submitOffPlanBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">COMPLETAR CIERRE</button></div></div></div>
     <div id="medicionModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden"><div id="medicionModalBackdrop" class="absolute inset-0 bg-black bg-opacity-50 opacity-0 modal-backdrop"></div><div class="modal-panel bg-white rounded-lg shadow-2xl w-full max-w-lg mx-auto transform opacity-0 scale-95 flex flex-col max-h-[90vh]"><div class="flex justify-between items-center p-4 border-b flex-shrink-0"><div><h3 class="text-lg font-semibold">Adjuntar Medición</h3><p id="medicionModalTitle" class="text-sm text-gray-600"></p></div><button id="closeMedicionModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button></div><form id="medicionForm" class="p-4 space-y-4 overflow-y-auto custom-scrollbar flex-grow"><div><label class="block text-sm font-medium text-gray-700 mb-2">Fotos de Medición (máx. 30)</label><div class="flex space-x-2"><label for="medicionCameraInput" class="flex-1 text-center px-4 py-2 bg-purple-600 text-white rounded-md cursor-pointer hover:bg-purple-700 text-xs">📷 CÁMARA</label><input type="file" id="medicionCameraInput" accept="image/*" capture="environment" class="hidden"><label for="medicionGalleryInput" class="flex-1 text-center px-4 py-2 bg-purple-600 text-white rounded-md cursor-pointer hover:bg-purple-700 text-xs">🖼️ GALERÍA</label><input type="file" id="medicionGalleryInput" accept="image/*" multiple class="hidden"></div></div><div id="medicionPhotoPreview" class="grid grid-cols-3 sm:grid-cols-5 gap-2 bg-gray-100 p-2 rounded-md min-h-[80px]"></div><div class="text-sm text-gray-600 text-center"><span id="medicionPhotoCount">0</span> / 30 fotos</div></form><div class="px-4 py-3 bg-gray-50 text-right flex-shrink-0"><button type="submit" form="medicionForm" id="submitMedicionBtn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-md">ADJUNTAR MEDICIÓN</button></div></div></div>
     
     <script>const GOOGLE_APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx004763u8F8bfKL5GxLFkE9UEs74hh9b5V6pOO_NHD-533LMY8FMtW-ItcdrLx-JSCxw/exec";</script>
@@ -16878,99 +16906,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function handleOffPlanSubmit(event) {
-        event.preventDefault();
-        const form = document.getElementById('offPlanReportForm');
-        const submitButton = document.getElementById('submitOffPlanBtn');
-        const editingId = form.dataset.editingId;
-        if (!submitButton) return;
-
-        submitButton.disabled = true;
-        submitButton.innerHTML = '<div class="loader mx-auto"></div>';
-
-        const newAddress = form.elements.offPlanAddress.value;
-        const newNap = form.elements.offPlanNap.value;
-
-        if (!newAddress || !newNap) {
-            showToast("La Dirección y el NAP son obligatorios.", "error");
-            submitButton.disabled = false;
-            submitButton.innerHTML = 'COMPLETAR CIERRE';
-            return;
-        }
-        
-        // ✅ CONVERTIR FOTOS A BASE64 ANTES DE ENVIAR
-        const photosBase64 = await convertFilesToBase64(appState.modalFunctions.getOffPlanFiles());
-
-        const newId = editingId || newAddress;
-        const existingData = editingId ? appState.completedData.find(c => c.id === editingId) : {};
-
-        const dataToSend = {
-            ...existingData,
-            DIRECCION_EDIFICIO: newAddress,
-            NAP: newNap,
-            PC: newNap.substring(0, 5),
-            CDO: form.elements.offPlanCdo.value,
-            PROVEEDOR: appState.providerName,
-            causal: form.elements.offPlanCloseReason.value,
-            observaciones: form.elements.offPlanObservations.value,
-            reportedBy: 'Sistema Web (Fuera de Plan)',
-            isOffPlan: true,
-            action: editingId ? 'update' : 'create',
-            newPhotosBase64: photosBase64 // ✅ AÑADIR FOTOS AL ENVÍO
-        };
-        
-        const sanitizedData = Object.fromEntries(
-            Object.entries(dataToSend).map(([key, value]) => [key.replace(/[^a-zA-Z0-9]/g, '_'), value])
-        );
-
-        try {
-            const response = await fetch(GOOGLE_APP_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'cors',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(sanitizedData)
-            });
-            const result = await response.json();
-
-            if (result.status !== 'success') {
-                throw new Error(result.message || 'Error desconocido en Google Apps Script.');
-            }
-
-            const closureData = {
-                ...existingData,
-                'DIRECCION EDIFICIO': dataToSend.DIRECCION_EDIFICIO,
-                'NAP': dataToSend.NAP,
-                'PC': dataToSend.PC,
-                'CDO': dataToSend.CDO,
-                'PROVEEDOR': dataToSend.PROVEEDOR,
-                causal: dataToSend.causal,
-                observaciones: dataToSend.observaciones,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                reportedBy: dataToSend.reportedBy,
-                isOffPlan: true,
-                driveFolderUrl: result.folderUrl || existingData.driveFolderUrl
-            };
-            
-            if (editingId) {
-                 await appState.closuresCollection.doc(newId).update(closureData);
-                 showToast("¡Cierre actualizado con éxito!");
-            } else {
-                 await appState.closuresCollection.doc(newId).set(closureData);
-                 showToast("¡Cierre fuera de plan informado con éxito!");
-            }
-            
-            appState.modalFunctions.closeModal(document.getElementById('offPlanModal'), document.getElementById('offPlanModalBackdrop'));
-
-        } catch (error) {
-            console.error("Error en el proceso de cierre fuera de plan: ", error);
-            showToast("Error al procesar el cierre: " + error.message, "error");
-        } finally {
-            submitButton.disabled = false;
-            submitButton.textContent = editingId ? 'GUARDAR CAMBIOS' : 'COMPLETAR CIERRE';
-            delete form.dataset.editingId;
-        }
-    }
-
     async function handleMedicionSubmit(event) {
         event.preventDefault();
         const form = document.getElementById('medicionForm');
@@ -17206,9 +17141,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderCompletedInfoCard(cierre) {
         const card = document.getElementById('completedBuildingInfoCard');
-        const revertButtonHtml = cierre.isOffPlan 
-            ? `<button class="delete-closure-btn flex-1 bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-md">ELIMINAR</button>`
-            : `<button class="revert-closure-btn flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md">REVERTIR A PENDIENTE</button>`;
+        const revertButtonHtml = `<button class="revert-closure-btn flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md">REVERTIR A PENDIENTE</button>`;
         
         const medicion = appState.medicionesData[cierre.id];
         const medicionFolderHtml = medicion 
@@ -17246,9 +17179,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(editMedicionBtn) editMedicionBtn.addEventListener('click', () => appState.modalFunctions.openMedicionModal(cierre, true));
         
         const revertBtn = card.querySelector('.revert-closure-btn');
-        const deleteBtn = card.querySelector('.delete-closure-btn');
         if(revertBtn) revertBtn.addEventListener('click', () => deleteOrRevertClosure(cierre, false));
-        if(deleteBtn) deleteBtn.addEventListener('click', () => deleteOrRevertClosure(cierre, true));
     }
 
     function renderPendingActionButton() {
@@ -17361,7 +17292,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('pendingSearchBox').addEventListener('input', () => renderPendingList());
         document.getElementById('completedSearchBox').addEventListener('input', () => renderCompletedList());
         document.getElementById('reportForm').addEventListener('submit', handleReportSubmit);
-        document.getElementById('offPlanReportForm').addEventListener('submit', handleOffPlanSubmit);
         document.getElementById('medicionForm').addEventListener('submit', handleMedicionSubmit);
         
         ['centralFilter', 'pdFilter', 'sortSelect'].forEach(id => {
@@ -17482,18 +17412,7 @@ function setupAllModals() {
     const reportCameraInput = document.getElementById('reportCameraInput');
     const reportGalleryInput = document.getElementById('reportGalleryInput');
     
-    const offPlanModal = document.getElementById('offPlanModal');
-    const offPlanModalBackdrop = document.getElementById('offPlanModalBackdrop');
-    const closeOffPlanModalButton = document.getElementById('closeOffPlanModalBtn');
-    const offPlanForm = document.getElementById('offPlanReportForm');
-    const submitOffPlanBtn = document.getElementById('submitOffPlanBtn');
-    const offPlanPhotoPreview = document.getElementById('offPlanPhotoPreview');
-    const offPlanCameraInput = document.getElementById('offPlanCameraInput');
-    const offPlanGalleryInput = document.getElementById('offPlanGalleryInput');
-
-    const offPlanButton = document.getElementById('offPlanButton');
     let reportUploadedFiles = [];
-    let offPlanUploadedFiles = [];
 
     function openModal(modal, backdrop) {
         if (!modal || !backdrop) return;
@@ -17548,26 +17467,6 @@ function setupAllModals() {
         }
     });
 
-    if (offPlanButton) offPlanButton.addEventListener('click', () => {
-        offPlanForm.reset();
-        delete offPlanForm.dataset.editingId;
-        submitOffPlanBtn.textContent = 'COMPLETAR CIERRE';
-        document.getElementById('offPlanAddress').disabled = false;
-        offPlanUploadedFiles = [];
-        renderPhotoPreview(offPlanPhotoPreview, offPlanUploadedFiles);
-        openModal(offPlanModal, offPlanModalBackdrop)
-    });
-    if (closeOffPlanModalButton) closeOffPlanModalButton.addEventListener('click', () => closeModal(offPlanModal, offPlanModalBackdrop));
-    if (offPlanModalBackdrop) offPlanModalBackdrop.addEventListener('click', () => closeModal(offPlanModal, offPlanModalBackdrop));
-    if (offPlanCameraInput) offPlanCameraInput.addEventListener('change', (e) => handleFiles(e.target.files, offPlanUploadedFiles, offPlanPhotoPreview));
-    if (offPlanGalleryInput) offPlanGalleryInput.addEventListener('change', (e) => handleFiles(e.target.files, offPlanUploadedFiles, offPlanPhotoPreview));
-    if (offPlanPhotoPreview) offPlanPhotoPreview.addEventListener('click', (e) => {
-        if (e.target.classList.contains('remove-photo-btn')) {
-            offPlanUploadedFiles.splice(parseInt(e.target.dataset.index, 10), 1);
-            renderPhotoPreview(offPlanPhotoPreview, offPlanUploadedFiles);
-        }
-    });
-
     const medicionModal = document.getElementById('medicionModal');
     const medicionModalBackdrop = document.getElementById('medicionModalBackdrop');
     const medicionModalTitle = document.getElementById('medicionModalTitle');
@@ -17616,34 +17515,18 @@ function setupAllModals() {
             openModal(reportModal, reportModalBackdrop);
         },
         openEditModal: (cierre) => {
-            if (cierre.isOffPlan) {
-                offPlanForm.reset();
-                offPlanForm.dataset.editingId = cierre.id;
-                offPlanForm.elements.offPlanAddress.value = cierre['DIRECCION EDIFICIO'];
-                offPlanForm.elements.offPlanAddress.disabled = true; 
-                offPlanForm.elements.offPlanNap.value = cierre.NAP || '';
-                offPlanForm.elements.offPlanCdo.value = cierre.CDO || '';
-                offPlanForm.elements.offPlanCloseReason.value = cierre.causal;
-                offPlanForm.elements.offPlanObservations.value = cierre.observaciones;
-                submitOffPlanBtn.textContent = 'GUARDAR CAMBIOS';
-                offPlanUploadedFiles = [];
-                renderPhotoPreview(offPlanPhotoPreview, offPlanUploadedFiles);
-                openModal(offPlanModal, offPlanModalBackdrop);
-            } else {
-                reportForm.reset();
-                reportForm.dataset.editingId = cierre.id;
-                reportModalTitle.textContent = `Editando: ${cierre['DIRECCION EDIFICIO']}`;
-                reportForm.elements.reportCloseReason.value = cierre.causal;
-                reportForm.elements.reportObservations.value = cierre.observaciones;
-                submitReportBtn.textContent = 'GUARDAR CAMBIOS';
-                reportUploadedFiles = [];
-                renderPhotoPreview(reportPhotoPreview, reportUploadedFiles);
-                openModal(reportModal, reportModalBackdrop);
-            }
+            reportForm.reset();
+            reportForm.dataset.editingId = cierre.id;
+            reportModalTitle.textContent = `Editando: ${cierre['DIRECCION EDIFICIO']}`;
+            reportForm.elements.reportCloseReason.value = cierre.causal;
+            reportForm.elements.reportObservations.value = cierre.observaciones;
+            submitReportBtn.textContent = 'GUARDAR CAMBIOS';
+            reportUploadedFiles = [];
+            renderPhotoPreview(reportPhotoPreview, reportUploadedFiles);
+            openModal(reportModal, reportModalBackdrop);
         },
         closeModal,
         getReportFiles: () => reportUploadedFiles,
-        getOffPlanFiles: () => offPlanUploadedFiles,
         openMedicionModal: (cierre, isEditing) => {
             if (!medicionModal || !cierre) return;
             medicionModalTitle.textContent = cierre['DIRECCION EDIFICIO'];

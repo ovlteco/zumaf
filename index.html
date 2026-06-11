@@ -195,6 +195,7 @@ body.dark-mode {
             <nav class="flex -mb-px space-x-6" aria-label="Tabs">
                 <button id="pendingTab" class="py-3 px-1 border-b-2 text-sm font-medium tab">Pendientes</button>
                 <button id="completedTab" class="py-3 px-1 border-b-2 text-sm font-medium tab">Realizados</button>
+                <button id="reportsTab" class="py-3 px-1 border-b-2 text-sm font-medium tab">Reportes</button>
             </nav>
         </div>
 
@@ -260,6 +261,31 @@ body.dark-mode {
                 <div id="completedBuildingList" class="flex-grow overflow-y-auto custom-scrollbar pr-2 h-96"></div>
             </div>
             <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6"><h2 class="text-xl font-semibold mb-4 dark:text-gray-100">Detalles del Cierre</h2><div id="completedBuildingInfoCard" class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg min-h-[200px] flex items-center justify-center"><p class="text-gray-500 dark:text-gray-400 text-center">Seleccione un cierre de la lista.</p></div></div>
+        </main>
+                <main id="reportsView" class="hidden">
+            <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+                <h2 class="text-xl font-semibold mb-4 dark:text-gray-100">Reportes</h2>
+                <p class="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                    Descargue el reporte de edificios construidos desde BDCierre filtrado por proveedor y PD.
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                    <div>
+                        <label for="reportPdSelect" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">PD</label>
+                        <select id="reportPdSelect" class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg">
+                            <option value="">Seleccione PD...</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <button id="downloadReportBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg shadow">
+                            Descargar Excel
+                        </button>
+                    </div>
+                </div>
+
+                <div id="reportResultMessage" class="mt-4 text-sm text-gray-600 dark:text-gray-300"></div>
+            </div>
         </main>
     </div>
 
@@ -52317,26 +52343,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function switchView(view) {
-        const pendingView = document.getElementById('pendingView');
-        const completedView = document.getElementById('completedView');
-        const pendingTab = document.getElementById('pendingTab');
-        const completedTab = document.getElementById('completedTab');
-        if (view === 'pending') {
-            pendingView.classList.remove('hidden');
-            completedView.classList.add('hidden');
-            pendingTab.classList.add('tab-active');
-            pendingTab.classList.remove('tab-inactive');
-            completedTab.classList.add('tab-inactive');
-            completedTab.classList.remove('tab-active');
-        } else {
-            pendingView.classList.add('hidden');
-            completedView.classList.remove('hidden');
-            pendingTab.classList.remove('tab-active');
-            pendingTab.classList.add('tab-inactive');
-            completedTab.classList.add('tab-active');
-            completedTab.classList.remove('tab-inactive');
-        }
+       
+     const pendingView = document.getElementById('pendingView');
+     const completedView = document.getElementById('completedView');
+     const reportsView = document.getElementById('reportsView');
+
+     const pendingTab = document.getElementById('pendingTab');
+     const completedTab = document.getElementById('completedTab');
+     const reportsTab = document.getElementById('reportsTab');
+
+     pendingView.classList.add('hidden');
+     completedView.classList.add('hidden');
+     reportsView.classList.add('hidden');
+
+     pendingTab.classList.remove('tab-active');
+     completedTab.classList.remove('tab-active');
+     reportsTab.classList.remove('tab-active');
+
+     pendingTab.classList.add('tab-inactive');
+     completedTab.classList.add('tab-inactive');
+     reportsTab.classList.add('tab-inactive');
+
+    if (view === 'pending') {
+        pendingView.classList.remove('hidden');
+        pendingTab.classList.add('tab-active');
+        pendingTab.classList.remove('tab-inactive');
     }
+
+    if (view === 'completed') {
+        completedView.classList.remove('hidden');
+        completedTab.classList.add('tab-active');
+        completedTab.classList.remove('tab-inactive');
+    }
+
+    if (view === 'reports') {
+        reportsView.classList.remove('hidden');
+        reportsTab.classList.add('tab-active');
+        reportsTab.classList.remove('tab-inactive');
+        populateReportPdSelect();
+    }
+}
     
     function populateFilters() {
         const centrals = [...new Set(edificiosData.map(e => e['CENTRAL']).filter(Boolean))].sort();
@@ -52357,7 +52403,33 @@ document.addEventListener('DOMContentLoaded', () => {
             if (pdFilterCompleted) pdFilterCompleted.innerHTML += `<option value="${p}">${p}</option>`;
         });
     }
+    function populateReportPdSelect() {
+    const reportPdSelect = document.getElementById('reportPdSelect');
+    if (!reportPdSelect) return;
 
+    const currentValue = reportPdSelect.value;
+
+    const pds = [...new Set(
+        edificiosData
+            .map(e => {
+                const central = (e['CENTRAL'] || '').trim();
+                const pd = (e['PD'] || '').trim();
+                if (!central || !pd) return '';
+                return central + '-' + pd;
+            })
+            .filter(Boolean)
+    )].sort();
+
+    reportPdSelect.innerHTML = '<option value="">Seleccione PD...</option>';
+
+    pds.forEach(pd => {
+        reportPdSelect.innerHTML += `<option value="${pd}">${pd}</option>`;
+    });
+
+    if (currentValue) {
+        reportPdSelect.value = currentValue;
+    }
+}
     function renderTableView(container, data, type) {
         const isPending = type === 'pending';
         container.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-xs"><thead class="bg-gray-200 dark:bg-gray-700"><tr><th class="p-2 text-left dark:text-white">Dirección</th><th class="p-2 text-left dark:text-white">Central-PD</th><th class="p-2 text-left dark:text-white">NAP</th>${isPending ? '<th class="p-2 text-right dark:text-white">Activos</th>' : '<th class="p-2 text-left dark:text-white">Causal</th>'}</tr></thead><tbody>` +
@@ -52398,6 +52470,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function setupUIListeners() {
         document.getElementById('pendingTab').addEventListener('click', () => switchView('pending'));
         document.getElementById('completedTab').addEventListener('click', () => switchView('completed'));
+        document.getElementById('reportsTab').addEventListener('click', () => switchView('reports'));
         document.getElementById('pendingSearchBox').addEventListener('input', () => renderPendingList());
         document.getElementById('completedSearchBox').addEventListener('input', () => renderCompletedList());
         document.getElementById('reportForm').addEventListener('submit', handleReportSubmit);
@@ -52470,6 +52543,90 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Descargar archivo
                 XLSX.writeFile(wb, filename);
                 showToast('Excel exportado: ' + pendingData.length + ' edificios', 'success');
+            });
+        }
+                // Botón de descarga de reporte desde BDCierre
+        const downloadReportBtn = document.getElementById('downloadReportBtn');
+        if (downloadReportBtn) {
+            downloadReportBtn.addEventListener('click', async () => {
+                const reportPdSelect = document.getElementById('reportPdSelect');
+                const reportResultMessage = document.getElementById('reportResultMessage');
+
+                const selectedPd = reportPdSelect ? reportPdSelect.value : '';
+
+                if (!selectedPd) {
+                    showToast('Seleccione una PD para descargar el reporte', 'error');
+                    return;
+                }
+
+                downloadReportBtn.disabled = true;
+                downloadReportBtn.textContent = 'Descargando...';
+
+                if (reportResultMessage) {
+                    reportResultMessage.textContent = 'Consultando BDCierre...';
+                }
+
+                try {
+                    const response = await fetch(GOOGLE_APP_SCRIPT_URL, {
+                        method: 'POST',
+                        mode: 'cors',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify({
+                            action: 'reporte',
+                            proveedor: appState.providerName,
+                            pd: selectedPd
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.status !== 'success') {
+                        throw new Error(result.message || 'Error desconocido al generar reporte.');
+                    }
+
+                    const reportData = result.data || [];
+
+                    if (reportData.length === 0) {
+                        showToast('No se encontraron registros para esa PD', 'error');
+                        if (reportResultMessage) {
+                            reportResultMessage.textContent = 'No se encontraron registros para ' + selectedPd + '.';
+                        }
+                        return;
+                    }
+
+                    const ws = XLSX.utils.json_to_sheet(reportData);
+                    const wb = XLSX.utils.book_new();
+
+                    XLSX.utils.book_append_sheet(wb, ws, 'Reporte');
+
+                    ws['!cols'] = Object.keys(reportData[0]).map(() => ({ wch: 22 }));
+
+                    const today = new Date().toISOString().split('T')[0];
+                    const providerName = appState.providerName.replace(/\s+/g, '_');
+                    const safePd = selectedPd.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+                    const filename = 'Reporte_' + providerName + '_' + safePd + '_' + today + '.xlsx';
+
+                    XLSX.writeFile(wb, filename);
+
+                    showToast('Reporte exportado: ' + reportData.length + ' registros', 'success');
+
+                    if (reportResultMessage) {
+                        reportResultMessage.textContent = 'Reporte generado correctamente: ' + reportData.length + ' registros.';
+                    }
+
+                } catch (error) {
+                    console.error('Error descargando reporte:', error);
+                    showToast('Error al descargar reporte: ' + error.message, 'error');
+
+                    if (reportResultMessage) {
+                        reportResultMessage.textContent = 'Error: ' + error.message;
+                    }
+
+                } finally {
+                    downloadReportBtn.disabled = false;
+                    downloadReportBtn.textContent = 'Descargar Excel';
+                }
             });
         }
         
